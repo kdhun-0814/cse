@@ -1,0 +1,22 @@
+# Mac OS 시스템 파일 (맥북이랑 같이 쓸 때 필수)
+.DS_Store
+.AppleDouble
+.LSOverride
+
+# Windows 시스템 파일
+Thumbs.db
+ehthumbs.db
+
+# Python
+__pycache__/
+*.pyc
+venv/
+.env
+
+# Flutter / Dart
+app/.dart_tool/
+app/.idea/
+app/build/
+app/ios/Pods/
+app/.flutter-plugins
+app/.flutter-plugins-dependencies
