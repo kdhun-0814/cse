@@ -20,3 +20,13 @@ app/build/
 app/ios/Pods/
 app/.flutter-plugins
 app/.flutter-plugins-dependencies
+# --- Firebase 보안 키 (절대 올리면 안 됨!) ---
+ai_server/serviceAccountKey.json
+
+# --- 데이터 및 AI 모델 (용량이 커서 보통 뺍니다) ---
+ai_server/dataset.csv
+ai_server/model.pkl
+
+# --- 가상환경 폴더 (혹시 남아있다면) ---
+ai_server/.venv/
+.venv/
