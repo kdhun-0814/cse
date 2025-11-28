@@ -1,95 +1,99 @@
-import requests
+from selenium import webdriver
+from selenium.webdriver.chrome.service import Service
+from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 import csv
 import time
 
+# 목표: 1000개
 TARGET_COUNT = 1000
+START_URL = "https://www.gnu.ac.kr/cse/na/ntt/selectNttList.do?mi=17093&bbsId=4753"
 
-# URL을 쪼갭니다 (기본 주소 + 파라미터)
-BASE_URL = "https://www.gnu.ac.kr/cse/na/ntt/selectNttList.do"
-HEADERS = {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36'
-}
-
-def collect_data_unique():
-    print(f"🕷️ 데이터 수집 시작 (목표: {TARGET_COUNT}개)")
+def collect_data_selenium():
+    print(f"🕷️ 셀레니움 실행 (HTML 분석 완료: goPaging 모드 / 목표: {TARGET_COUNT}개)")
     
+    options = webdriver.ChromeOptions()
+    # options.add_argument('headless') # 창 숨기려면 주석 해제
+    driver = webdriver.Chrome(service=Service(ChromeDriverManager().install()), options=options)
+    
+    driver.get(START_URL)
+    time.sleep(2) 
+
     f = open('dataset.csv', 'w', encoding='utf-8-sig', newline='')
     wr = csv.writer(f)
     wr.writerow(['title', 'category']) 
 
-    count = 0
+    total_count = 0
     page = 1
     seen_titles = set()
 
-    while count < TARGET_COUNT:
-        # [핵심 수정] URL 뒤에 붙이는 대신, params 딕셔너리로 깔끔하게 전달
-        params = {
-            'mi': 17093,
-            'bbsId': 4753,
-            'nttPageIndex': page  # 페이지 번호 자동 적용
-        }
+    while total_count < TARGET_COUNT:
+        # HTML 가져오기
+        html = driver.page_source
+        soup = BeautifulSoup(html, 'html.parser')
+        rows = soup.select('tbody tr')
         
+        # [검증] 페이지 확인용 제목 출력
+        check_title = "제목못찾음"
+        for r in rows:
+            # 공지가 아닌 첫 번째 글 찾기
+            if "공지" not in r.select('td')[0].get_text():
+                t = r.select_one('a.nttInfoBtn')
+                if t: 
+                    check_title = t.get_text(strip=True)[:10]
+                    break
+        
+        print(f"\n📄 {page}페이지 스캔 중 (일반글: {check_title}...)")
+
+        new_in_page = 0
+        for row in rows:
+            cols = row.select('td')
+            # 1. 상단 공지 패스
+            if not cols or "공지" in cols[0].get_text(strip=True):
+                continue
+
+            title_tag = row.select_one('a.nttInfoBtn')
+            if not title_tag: continue
+            
+            title = title_tag.get_text(strip=True)
+            
+            if title in seen_titles: continue
+            
+            # 임시 분류
+            category = "일반"
+            if "장학" in title: category = "장학"
+            elif "수강" in title or "학사" in title: category = "학사"
+            elif "채용" in title or "인턴" in title: category = "취업"
+            elif "행사" in title: category = "행사"
+
+            wr.writerow([title, category])
+            seen_titles.add(title)
+            total_count += 1
+            new_in_page += 1
+            
+            if total_count >= TARGET_COUNT: break
+        
+        print(f"   -> {new_in_page}개 저장 (누적 {total_count}개)")
+        if total_count >= TARGET_COUNT: break
+
+        # 3. [핵심] 페이지 이동 (HTML 분석 결과 반영)
+        page += 1
         try:
-            # params를 넣어서 요청
-            response = requests.get(BASE_URL, headers=HEADERS, params=params)
-            soup = BeautifulSoup(response.text, 'html.parser')
-            rows = soup.select('tbody tr')
+            print(f"   🏃 {page}페이지로 이동 (goPaging({page}) 실행)...")
             
-            if not rows: 
-                print("   -> 글이 없습니다. 종료.")
-                break
+            # 보내주신 HTML에 있는 함수 'goPaging'을 직접 실행합니다.
+            # 이것은 사용자가 숫자를 클릭하는 것과 100% 동일합니다.
+            driver.execute_script(f"goPaging({page});")
             
-            new_in_page = 0
-            
-            for row in rows:
-                # 1. '공지'라고 적힌 상단 고정글은 무조건 건너뜁니다.
-                # (이유: 모든 페이지에 중복으로 나오기 때문에 헷갈림 방지)
-                cols = row.select('td')
-                if not cols: continue
-                
-                num_text = cols[0].get_text(strip=True)
-                if "공지" in num_text:
-                    continue # 고정 공지는 수집 안 함 (일반 글만 수집해서 학습)
-
-                title_tag = row.select_one('a.nttInfoBtn')
-                if not title_tag: continue
-                
-                title = title_tag.get_text(strip=True)
-                
-                # 중복 체크
-                if title in seen_titles:
-                    continue
-                
-                # 분류 로직 (임시)
-                category = "일반"
-                if "장학" in title: category = "장학"
-                elif "수강" in title or "학사" in title or "성적" in title: category = "학사"
-                elif "채용" in title or "인턴" in title or "모집" in title: category = "취업"
-                elif "행사" in title or "대회" in title or "특강" in title: category = "행사"
-
-                wr.writerow([title, category])
-                seen_titles.add(title)
-                count += 1
-                new_in_page += 1
-                
-                if count >= TARGET_COUNT: break
-            
-            # 로그 출력: 이번 페이지에서 진짜 새로운 글을 찾았는지 확인
-            if new_in_page > 0:
-                print(f"📄 {page}페이지: {new_in_page}개 저장 완료 (누적 {count}개)")
-            else:
-                print(f"📄 {page}페이지: 건질 게 없음 (다 중복이거나 공지)")
-
-            page += 1
-            time.sleep(0.3)
+            time.sleep(2) # 로딩 대기
             
         except Exception as e:
-            print(f"❌ 에러 발생: {e}")
+            print(f"❌ 이동 실패: {e}")
             break
-            
+
+    driver.quit()
     f.close()
-    print(f"\n✅ 수집 완료! 총 {count}개 저장됨.")
+    print(f"\n✅ 수집 완료! 총 {total_count}개 저장됨.")
 
 if __name__ == "__main__":
-    collect_data_unique()
+    collect_data_selenium()
