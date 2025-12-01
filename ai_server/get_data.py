@@ -56,15 +56,29 @@ def collect_data_selenium():
             if not title_tag: continue
             
             title = title_tag.get_text(strip=True)
+                
+            if title in seen_titles:
+                continue
             
-            if title in seen_titles: continue
-            
-            # 임시 분류
-            category = "일반"
-            if "장학" in title: category = "장학"
-            elif "수강" in title or "학사" in title: category = "학사"
-            elif "채용" in title or "인턴" in title: category = "취업"
-            elif "행사" in title: category = "행사"
+            # --- [수정된 카테고리 7종 분류 로직] ---
+            category = "학사" # 기본값 (딱히 없으면 학사로)
+                # 1. 중요 (상단 공지)
+            if "공지" in cols[0].get_text(strip=True):
+                    category = "중요"
+                
+                # 2. 키워드 기반 분류
+            elif "장학" in title: 
+                    category = "장학"
+            elif "공모전" in title or "대회" in title or "경진" in title or "아이디어" in title: 
+                    category = "공모전"
+            elif "채용" in title or "인턴" in title or "취업" in title or "사원" in title or "LINC" in title: 
+                    category = "취업" # (오타 '튀업' 수정완료)
+            elif "특강" in title or "설명회" in title or "교육" in title or "세미나" in title or "캠프" in title: 
+                    category = "외부행사"
+            elif "학생회" in title or "MT" in title or "OT" in title or "총회" in title or "간식" in title: 
+                    category = "학과행사" # (보통 관리자가 올리지만 키워드도 추가)
+            elif "수강" in title or "졸업" in title or "성적" in title or "등록" in title: 
+                    category = "학사"
 
             wr.writerow([title, category])
             seen_titles.add(title)
