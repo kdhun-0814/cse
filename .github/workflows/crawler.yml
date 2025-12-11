@@ -1,0 +1,36 @@
+name: School Notice Crawler
+
+on:
+  schedule:
+    - cron: '*/30 * * * *' # 30분마다 실행
+  workflow_dispatch: # 수동 실행 버튼 활성화
+
+jobs:
+  crawl:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: 체크아웃 (Checkout)
+      uses: actions/checkout@v2
+
+    - name: 파이썬 설정 (Setup Python)
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+
+    - name: Chrome & Driver 설치
+      uses: browser-actions/setup-chrome@latest
+      
+    - name: 의존성 설치 (Install Dependencies)
+      run: |
+        pip install selenium webdriver-manager firebase-admin beautifulsoup4
+
+    - name: Firebase 키 생성
+      run: |
+        echo '${{ secrets.FIREBASE_SERVICE_ACCOUNT }}' > serviceAccountKey.json
+
+    - name: 크롤러 실행
+      env:
+        FIREBASE_KEY: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+      run: |
+        python ai_server/crawler.py

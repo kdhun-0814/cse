@@ -1,4 +1,4 @@
-# app
+# cs_app
 
 A new Flutter project.
 

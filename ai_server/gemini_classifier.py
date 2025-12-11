@@ -4,118 +4,99 @@ import time
 import os
 
 # 1. API 키 설정
-GEMINI_API_KEY = "AIzaSyBdmQHZjiXEUi6208fdHzz-6YfOGMglyFI" # <- 본인 키 입력 (공백 없이!)
+# GEMINI_API_KEY = "AIzaSyAfiDe3Zbzt2e3aJxHyF6Qqrv_HHWM7tIU" 
+# 보안을 위해 환경변수 사용 권장하지만, 사용자 요청에 따라 하드코딩 유지 혹은 환경변수 처리
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyAfiDe3Zbzt2e3aJxHyF6Qqrv_HHWM7tIU")
+
+def keyword_fallback(title):
+    """
+    Gemini API 실패 시 사용할 키워드 기반 분류기
+    """
+    title = title.replace(" ", "") # 공백 제거 후 검색
+    
+    # 1. 공모전/대회
+    if any(k in title for k in ["공모전", "경진대회", "대회", "아이디어톤", "해커톤", "캡스톤", "팀모집", "챌린지"]):
+        return "공모전"
+    
+    # 2. 장학
+    if any(k in title for k in ["장학", "장학생", "국가장학", "등록금", "생활비", "지원금"]):
+        if "근로" in title: return "장학" 
+        return "장학"
+        
+    # 3. 취업
+    if any(k in title for k in ["채용", "취업", "인턴", "현장실습", "LINC", "박람회", "직무", "나란히", "추천", "모집"]):
+        if "서포터즈" in title or "봉사" in title: return "외부행사"
+        return "취업"
+
+    # 4. 학과행사
+    if any(k in title for k in ["학생회", "총회", "간식", "MT", "OT", "오리엔테이션", "새터", "학위수여식", "졸업작품"]):
+        return "학과행사"
+        
+    # 5. 외부행사 (행사 -> 외부행사로 명확화)
+    if any(k in title for k in ["특강", "설명회", "교육", "서포터즈", "조사", "참가자", "전시회", "캠프", "프로그램"]):
+        if "채용" in title: return "취업"
+        return "외부행사"
+
+    # 6. 학사 (기본값)
+    return "학사"
 
 def classify_notice_with_gemini(title):
     # 2. 모델 설정 (Gemini 2.0 Flash)
     url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key={GEMINI_API_KEY}"
-    
     headers = { 'Content-Type': 'application/json' }
 
-    # 3. 프롬프트 (사용자 데이터 완벽 반영)
     prompt_text = f"""
     당신은 대학교 학과 공지사항 분류 전문가입니다.
     아래 제목을 보고 [장학, 취업, 학사, 외부행사, 학과행사, 공모전] 중 가장 적절한 하나를 선택해서 단어만 출력하세요.
     
-    [주의사항]
-    - '중요' 여부는 판단하지 마세요. (예: '수강신청'은 중요하지만 주제인 '학사'로 분류하세요.)
-    - '행사'와 '공모전', '취업'을 문맥에 따라 정확히 구분하세요.
-
     [분류 기준]
-    - 학사: 수강신청, 졸업, 성적, 휴학/복학, 예비군, 강의평가, 교환학생, 학적
+    - 학사: 수강신청, 졸업, 성적, 휴학/복학, 예비군, 강의평가, 학적, 전과
     - 장학: 장학금 신청, 선발, 지급 안내, 근로장학생
     - 취업: 채용, 인턴, 현장실습, LINC, 취업박람회, 직무캠프, 추천채용
-    - 외부행사: 외부 기관 주최 특강, 설명회, 교육, 서포터즈 모집, 설문조사
-    - 학과행사: 학생회 주관, MT, 간식행사, 총회, 학과 전용 행사
+    - 외부행사: 외부 기관 주최 특강, 설명회, 교육, 서포터즈 모집, 설문조사, 대외활동
+    - 학과행사: 학생회 주관, MT, 간식행사, 총회, 학과 전용 행사, 학위수여식
     - 공모전: 경진대회, 공모전, 해커톤, 아이디어 대회, 챌린지, 캡스톤 팀 모집
 
-    [학습된 분류 예시 (Few-shot Data)]
-    # 학사
-    - "2025학년도 2학기 중간 강의평가 안내" -> 학사
-    - "경상국립대학교 제77주년 개교기념식 안내" -> 학사
-    - "2026학년도 1학기 중국 파견 교환학생 선발 공고" -> 학사
-    - "학내 무선전산망(GNU-WLAN) 사용 안내" -> 학사
-    - "2025년 학생예비군 2차 기본훈련 안내" -> 학사
-    - "칠암도서관 추석 및 연휴 기간 중 휴관 안내" -> 학사
-    - "2025학년도 2학기 운영체제 수강자 리눅스 계정 사용자 명단 안내" -> 학사
-    - "2025학년도 2학기 수강취소 신청 안내" -> 학사
-    - "2025학년도 전기 조기졸업 및 수료졸업 신청 안내" -> 학사
-    - "2025학년도 2학기 1차 폐강강좌 및 2차 수강정정(지도) 안내" -> 학사
-    - "학내 인권침해 사건 발생 예방을 위한 인권센터 주요사항 안내" -> 학사
-    - "2025학년도 2학기 교직이수자 대상 응급처치 및 심폐소생술 교육 안내" -> 학사
-
-    # 장학
-    - "2025년 진주시 미래세대 행복기금 장학생 선발 안내" -> 장학
-    - "2025학년도 2학기 국제화장학금 신청 안내" -> 장학
-    - "[미래차 RISE사업] 취업 연계 장학생 모집 설명회 개최 안내" -> 장학
-    - "2025학년도 2학기 중소기업 취업연계 장학사업(희망사다리Ⅰ유형) 신청 안내" -> 장학
-
-    # 취업 (LINC, 채용설명회 포함)
-    - "2025년 취업대상자 집중 취업필살기 프로그램 참여자 추천 안내" -> 취업
-    - "㈜아크로멧, 한미약품(주) 채용설명회 및 채용 추천 안내" -> 취업
-    - "졸업예정자 대상 소프트웨어 기술자 신청 수수료 감면 안내" -> 취업
-    - "진로취업지원실(대학일자리플러스센터) 9월 진로취업 소식지 발송" -> 취업
-
-    # 공모전 (경진대회, 아이디어톤, 캡스톤 팀모집)
-    - "2025학년도 All About GNU_ 전공소개 UCC 기획 공모전 운영 안내" -> 공모전
-    - "[빅데이터혁신융합대학] 2025 FLOW 경진대회 홍보 협조 요청" -> 공모전
-    - "지역교육혁신센터 CI·학습플랫폼 명칭 공모전 추진 안내" -> 공모전
-    - "2025년 경상국립대학교 미래차 RISE사업 소성가공 경진대회 참가 홍보 요청" -> 공모전
-    - "[블록체인 분야] 비댁스 1day 아이디어톤 참가자 모집" -> 공모전
-    - "(재안내)2025 서울특별시 빅데이터캠퍼스 공모전 홍보 요청" -> 공모전
-    - "2025년 기업·직무분석 경진대회 개최 및 사전교육 안내" -> 공모전
-    - "제28회 2025 국립창원대학교 전국 대학생 자율로봇경진대회 개최 안내" -> 공모전
-    - "[미래차 RISE] 2학기 캡스톤디자인 및 종합설계 팀 신청 자료 제출 안내" -> 공모전
-    - "「2025 대학 연합 창업아이디어 발굴 콘(CORN)테스트」 모집" -> 공모전
-
-    # 외부행사 (서포터즈, 특강, 교육, 캠프)
-    - "2025년 대학생 취업인식도 설문조사 협조 요청" -> 외부행사
-    - "2025학년도 GADIST GP-해외과제발굴 프로그램 추가 모집 안내" -> 외부행사
-    - "2025년 제4차 평생교육사 자격증 발급 신청 안내" -> 외부행사
-    - "2025 글로벌 빅데이터·AI 교육 및 실무 체험 프로그램 모집" -> 외부행사
-    - "RISE사업단 홍보 서포터즈 지원자 모집 안내" -> 외부행사
-    - "[기업가정신센터] 2025년 기업가정신 팸투어 참여자 모집 안내" -> 외부행사
-    - "2025 “The Next AI” 인공지능 전시회 개최 안내" -> 외부행사
-    - "2025년 하반기 생활체육(보디빌딩) 무료교실 참여 안내" -> 외부행사
-    - "국립공원공단과 함께하는「진로·힐링 융합 꿈이룸 직무 캠프」참가자 모집" -> 외부행사
-    - "2025학년도 GNU 대학원생 인권서포터즈단 모집 안내" -> 외부행사
-
-    # 학과행사
-    - "컴퓨터공학과 학생회 총회 안내" -> 학과행사
-    - "신입생 오리엔테이션(OT) 및 새터 참가 조사" -> 학과행사
-    - "중간고사 기간 간식 배부 행사" -> 학과행사
-
-    [문제]
     제목: "{title}"
-    카테고리: 
     """
-
     data = { "contents": [{ "parts": [{"text": prompt_text}] }] }
 
-    try:
-        response = requests.post(url, headers=headers, data=json.dumps(data))
-        
-        if response.status_code == 200:
-            result = response.json()
-            if 'candidates' in result and result['candidates']:
-                category = result['candidates'][0]['content']['parts'][0]['text'].strip()
-                # 유효성 검사
-                valid_list = ["장학", "취업", "학사", "외부행사", "학과행사", "공모전"]
-                for v in valid_list:
-                    if v in category:
-                        return v
-                return "학사"
-            else:
-                return "학사"
-        else:
-            print(f"⚠️ Gemini 에러: {response.status_code}")
-            time.sleep(1)
-            return "학사"
+    max_retries = 3
+    retry_delay = 2  # 시작 대기 시간 (초)
 
-    except Exception as e:
-        print(f"⚠️ 요청 실패: {e}")
-        time.sleep(1)
-        return "학사"
+    for attempt in range(max_retries):
+        try:
+            response = requests.post(url, headers=headers, data=json.dumps(data))
+            
+            if response.status_code == 200:
+                result = response.json()
+                if 'candidates' in result and result['candidates']:
+                    category = result['candidates'][0]['content']['parts'][0]['text'].strip()
+                    valid_list = ["장학", "취업", "학사", "외부행사", "학과행사", "공모전"]
+                    for v in valid_list:
+                        if v in category:
+                            return v
+                    return keyword_fallback(title) 
+                else:
+                    return keyword_fallback(title)
+            
+            elif response.status_code == 429:
+                print(f"   ⚠️ Gemini 429 Too Many Requests. {retry_delay}초 후 재시도... ({attempt+1}/{max_retries})")
+                time.sleep(retry_delay)
+                retry_delay *= 2 # 지수 백오프 (2초 -> 4초 -> 8초)
+                continue
+            
+            else:
+                print(f"⚠️ Gemini 에러: {response.status_code}")
+                return keyword_fallback(title)
+
+        except Exception as e:
+            print(f"⚠️ 요청 실패: {e}")
+            return keyword_fallback(title)
+    
+    # 재시도 횟수 초과 시
+    print("   ❌ 재시도 횟수 초과. 키워드 분류로 넘어갑니다.")
+    return keyword_fallback(title)
 
 # 테스트
 if __name__ == "__main__":

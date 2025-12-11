@@ -1,18 +1,25 @@
 # ai_server/check_models.py
-import google.generativeai as genai
+import requests
 import os
-import sys
 
-# API 키 설정 (직접 넣거나 환경변수)
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
-if GEMINI_API_KEY is None:
-    print("🚨 에러: GEMINI_API_KEY 환경 변수가 설정되지 않았습니다.")
-    print("💡 해결 방법: 시스템 환경 변수에 GEMINI_API_KEY를 추가하고 발급받은 API 키를 값으로 설정해주세요.")
-    sys.exit(1)
+# 여기에 API 키를 넣으세요
+GEMINI_API_KEY = "AIzaSyAfiDe3Zbzt2e3aJxHyF6Qqrv_HHWM7tIU" 
 
-genai.configure(api_key=GEMINI_API_KEY)
+def list_models():
+    url = f"https://generativelanguage.googleapis.com/v1beta/models?key={GEMINI_API_KEY}"
+    try:
+        response = requests.get(url)
+        if response.status_code == 200:
+            models = response.json().get('models', [])
+            print("✅ 사용 가능한 모델 목록:")
+            for m in models:
+                # 'generateContent' 기능을 지원하는 모델만 출력
+                if 'generateContent' in m['supportedGenerationMethods']:
+                    print(f"- {m['name']}") # 예: models/gemini-1.5-flash
+        else:
+            print(f"❌ 에러 발생: {response.status_code} - {response.text}")
+    except Exception as e:
+        print(f"❌ 실행 실패: {e}")
 
-print("🔍 사용 가능한 모델 목록:")
-for m in genai.list_models():
-    if 'generateContent' in m.supported_generation_methods:
-        print(f"- {m.name}")
+if __name__ == "__main__":
+    list_models()

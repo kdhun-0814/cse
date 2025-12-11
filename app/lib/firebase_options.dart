@@ -42,42 +42,6 @@ class DefaultFirebaseOptions {
 
   static const FirebaseOptions web = FirebaseOptions(
     apiKey: 'AIzaSyCe0wyM1xa2nwjgdaMRjj1hXFd4VGcRk_k',
-    appId: '1:1096041236240:web:a6ff1ada1fe3b0db018795',
-    messagingSenderId: '1096041236240',
-    projectId: 'my-cse-b5ddf',
-    authDomain: 'my-cse-b5ddf.firebaseapp.com',
-    storageBucket: 'my-cse-b5ddf.firebasestorage.app',
-    measurementId: 'G-4ZTL5XSYPG',
-  );
-
-  static const FirebaseOptions android = FirebaseOptions(
-    apiKey: 'AIzaSyBTO7cSAFKF_YnMFTsigoIR0vnLgz3SCLg',
-    appId: '1:1096041236240:android:e721714f793489cf018795',
-    messagingSenderId: '1096041236240',
-    projectId: 'my-cse-b5ddf',
-    storageBucket: 'my-cse-b5ddf.firebasestorage.app',
-  );
-
-  static const FirebaseOptions ios = FirebaseOptions(
-    apiKey: 'AIzaSyB0mZmEb-rKtOaQE1agRDeUw1nuyTjS2NY',
-    appId: '1:1096041236240:ios:01c98307ceec52a4018795',
-    messagingSenderId: '1096041236240',
-    projectId: 'my-cse-b5ddf',
-    storageBucket: 'my-cse-b5ddf.firebasestorage.app',
-    iosBundleId: 'com.example.app',
-  );
-
-  static const FirebaseOptions macos = FirebaseOptions(
-    apiKey: 'AIzaSyB0mZmEb-rKtOaQE1agRDeUw1nuyTjS2NY',
-    appId: '1:1096041236240:ios:01c98307ceec52a4018795',
-    messagingSenderId: '1096041236240',
-    projectId: 'my-cse-b5ddf',
-    storageBucket: 'my-cse-b5ddf.firebasestorage.app',
-    iosBundleId: 'com.example.app',
-  );
-
-  static const FirebaseOptions windows = FirebaseOptions(
-    apiKey: 'AIzaSyCe0wyM1xa2nwjgdaMRjj1hXFd4VGcRk_k',
     appId: '1:1096041236240:web:8367dd937f04b2a6018795',
     messagingSenderId: '1096041236240',
     projectId: 'my-cse-b5ddf',
@@ -85,4 +49,41 @@ class DefaultFirebaseOptions {
     storageBucket: 'my-cse-b5ddf.firebasestorage.app',
     measurementId: 'G-S1VP2RYHTE',
   );
+
+  static const FirebaseOptions android = FirebaseOptions(
+    apiKey: 'AIzaSyBTO7cSAFKF_YnMFTsigoIR0vnLgz3SCLg',
+    appId: '1:1096041236240:android:0c63e9d977575998018795',
+    messagingSenderId: '1096041236240',
+    projectId: 'my-cse-b5ddf',
+    storageBucket: 'my-cse-b5ddf.firebasestorage.app',
+  );
+
+  static const FirebaseOptions ios = FirebaseOptions(
+    apiKey: 'AIzaSyB0mZmEb-rKtOaQE1agRDeUw1nuyTjS2NY',
+    appId: '1:1096041236240:ios:077e2a57edae3f46018795',
+    messagingSenderId: '1096041236240',
+    projectId: 'my-cse-b5ddf',
+    storageBucket: 'my-cse-b5ddf.firebasestorage.app',
+    iosBundleId: 'com.example.csApp',
+  );
+
+  static const FirebaseOptions macos = FirebaseOptions(
+    apiKey: 'AIzaSyB0mZmEb-rKtOaQE1agRDeUw1nuyTjS2NY',
+    appId: '1:1096041236240:ios:077e2a57edae3f46018795',
+    messagingSenderId: '1096041236240',
+    projectId: 'my-cse-b5ddf',
+    storageBucket: 'my-cse-b5ddf.firebasestorage.app',
+    iosBundleId: 'com.example.csApp',
+  );
+
+  static const FirebaseOptions windows = FirebaseOptions(
+    apiKey: 'AIzaSyCe0wyM1xa2nwjgdaMRjj1hXFd4VGcRk_k',
+    appId: '1:1096041236240:web:fce3c1b4b7492a46018795',
+    messagingSenderId: '1096041236240',
+    projectId: 'my-cse-b5ddf',
+    authDomain: 'my-cse-b5ddf.firebaseapp.com',
+    storageBucket: 'my-cse-b5ddf.firebasestorage.app',
+    measurementId: 'G-SVMFWDJP51',
+  );
+
 }
