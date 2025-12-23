@@ -170,7 +170,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                         });
                       },
                       decoration: const InputDecoration(
-                        hintText: "제목+내용 검색",
+                        hintText: "제목 또는 내용으로 검색하세요.",
                         prefixIcon: Icon(
                           Icons.search,
                           color: Color(0xFF8B95A1),
@@ -205,10 +205,18 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                 // 필터링 + 검색 로직
                 List<Notice> filteredNotices = allNotices.where((n) {
                   // 1. 카테고리 필터
-                  bool categoryMatch =
-                      widget.title == '전체' ||
-                      n.category == widget.title ||
-                      widget.title.contains(n.category);
+                  bool categoryMatch;
+                  if (widget.title == '전체') {
+                    categoryMatch = true;
+                  } else if (widget.title == '긴급 공지') {
+                    categoryMatch = n.isUrgent ?? false;
+                  } else if (widget.title == '중요 공지') {
+                    categoryMatch = n.isImportant ?? false;
+                  } else {
+                    categoryMatch = n.category == widget.title ||
+                        widget.title.contains(n.category);
+                  }
+
                   if (!categoryMatch) return false;
 
                   // 2. 검색어 필터 (제목+내용)
@@ -250,6 +258,29 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
         ],
       ),
     );
+  }
+
+  Color _getCategoryColor(String category) {
+    switch (category) {
+      case "긴급":
+        return const Color(0xFFFF8A80);
+      case "학사":
+        return const Color(0xFF90CAF9);
+      case "장학":
+        return const Color(0xFFFFCC80);
+      case "취업":
+        return const Color(0xFFA5D6A7);
+      case "학과행사":
+        return const Color(0xFFCE93D8);
+      case "외부행사":
+        return const Color(0xFF9E9E9E);
+      case "공모전":
+        return const Color(0xFFFFEE58);
+      case "광고":
+        return const Color(0xFFB0BEC5);
+      default:
+        return const Color(0xFF3182F6);
+    }
   }
 
   Widget _buildListItem(Notice notice) {
@@ -333,18 +364,39 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                     vertical: 4,
                   ),
                   decoration: BoxDecoration(
-                    color: widget.themeColor.withOpacity(0.1),
+                    color: _getCategoryColor(notice.category).withOpacity(0.1),
                     borderRadius: BorderRadius.circular(6),
                   ),
                   child: Text(
                     notice.category,
                     style: TextStyle(
                       fontSize: 11,
-                      color: widget.themeColor,
+                      color: _getCategoryColor(notice.category),
                       fontWeight: FontWeight.w600,
                     ),
                   ),
                 ),
+                if (notice.isUrgent == true) ...[
+                  const SizedBox(width: 6),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFFFEBEE), // Pastel Red
+                      borderRadius: BorderRadius.circular(6),
+                    ),
+                    child: const Text(
+                      "긴급",
+                      style: TextStyle(
+                        fontSize: 11,
+                        color: Color(0xFFD32F2F), // Strong Red
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
+                ],
                 const SizedBox(width: 8),
                 Text(
                   notice.author.isNotEmpty ? notice.author : "학과사무실",

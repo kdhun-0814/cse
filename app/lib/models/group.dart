@@ -43,6 +43,7 @@ class Group {
   // ★ UI용 계산 필드 (DB 저장 X)
   final bool isMyGroup;
   final bool isLiked;
+  final int likeCount; // ★ 찜 개수
   final bool isOfficial; // ★ 공식(학생회) 글 여부
 
   Group({
@@ -58,6 +59,7 @@ class Group {
     this.isManuallyClosed = false,
     this.isMyGroup = false,
     this.isLiked = false,
+    this.likeCount = 0,
     this.isOfficial = false, // 기본값 false
   });
 
@@ -96,6 +98,7 @@ class Group {
       // 로그인한 유저 ID와 작성자 ID 비교
       isMyGroup: currentUser != null && (data['authorId'] == currentUser.uid),
       isLiked: liked,
+      likeCount: likes.length,
       isOfficial: data['isOfficial'] ?? false,
     );
   }

@@ -21,7 +21,7 @@ class _EventEditScreenState extends State<EventEditScreen> {
   late DateTime _endDate;
   bool _isLoading = false;
 
-  final List<String> _categories = ["학사", "장학", "행사", "취업", "휴일"];
+  final List<String> _categories = ["학사", "장학", "취업", "학과행사", "외부행사", "공모전"];
 
   @override
   void initState() {

@@ -19,15 +19,17 @@ class Event {
   Color get color {
     switch (category) {
       case "학사":
-        return const Color(0xFF82B1FF);
+        return const Color(0xFF90CAF9);
       case "장학":
-        return const Color(0xFFFFD180);
-      case "행사":
-        return const Color(0xFFCE93D8);
-      case "휴일":
-        return const Color(0xFFFF8A80);
+        return const Color(0xFFFFCC80);
       case "취업":
         return const Color(0xFFA5D6A7);
+      case "학과행사":
+        return const Color(0xFFCE93D8);
+      case "외부행사":
+        return const Color.fromARGB(255, 158, 158, 158);
+      case "공모전":
+        return const Color(0xFFFFEE58);
       default:
         return const Color(0xFF3182F6);
     }

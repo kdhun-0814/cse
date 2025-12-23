@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
+import 'dart:async'; // StreamSubscription 사용을 위해 추가
 import 'package:flutter_slidable/flutter_slidable.dart'; // ★ 재추가
 import '../../models/group.dart';
 import '../../services/firestore_service.dart';
+import '../../widgets/like_button.dart'; // ★ 추가
 import 'group_detail_screen.dart';
 
 class GroupListScreen extends StatefulWidget {
@@ -16,13 +18,33 @@ class GroupListScreen extends StatefulWidget {
 class _GroupListScreenState extends State<GroupListScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   bool _isAdmin = false;
-  late Stream<List<Group>> _groupStream; // ★ 스트림 캐싱
+  late Stream<List<Group>> _groupStream;
+  
+  // ★ AnimatedList용 변수 (liked 필터일 때만 사용)
+  final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
+  List<Group> _displayedLikedGroups = [];
+  StreamSubscription<List<Group>>? _subscription;
 
   @override
   void initState() {
     super.initState();
     _checkAdminRole();
-    _groupStream = _firestoreService.getGroups(widget.filterType); // ★ 초기화
+    
+    if (widget.filterType == 'liked') {
+      // 찜 목록은 애니메이션 처리를 위해 수동 구독
+      _subscription = _firestoreService.getGroups('liked').listen((groups) {
+        _processLikedUpdates(groups);
+      });
+    } else {
+      // 나머지는 기존 스트림 빌더 사용
+      _groupStream = _firestoreService.getGroups(widget.filterType);
+    }
+  }
+
+  @override
+  void dispose() {
+    _subscription?.cancel();
+    super.dispose();
   }
 
   Future<void> _checkAdminRole() async {
@@ -34,11 +56,93 @@ class _GroupListScreenState extends State<GroupListScreen> {
     }
   }
 
+  // ★ 찜 목록 데이터 갱신 및 애니메이션 처리
+  void _processLikedUpdates(List<Group> newGroups) {
+    if (!mounted) return;
+
+    // 초기 로딩
+    if (_displayedLikedGroups.isEmpty && newGroups.isNotEmpty) {
+      setState(() {
+        _displayedLikedGroups = List.from(newGroups);
+      });
+      return;
+    }
+
+    // 1. 삭제된 항목 처리 (찜 해제) - 역순으로 처리하여 인덱스 꼬임 방지
+    for (int i = _displayedLikedGroups.length - 1; i >= 0; i--) {
+      final oldItem = _displayedLikedGroups[i];
+      final exists = newGroups.any((g) => g.id == oldItem.id);
+
+      if (!exists) {
+        // 실제 데이터에서 제거
+        final removedItem = _displayedLikedGroups.removeAt(i);
+        // 애니메이션과 함께 제거
+        _listKey.currentState?.removeItem(
+          i,
+          (context, animation) => _buildAnimatedGroupItem(removedItem, animation),
+          duration: const Duration(milliseconds: 500),
+        );
+      }
+    }
+
+    // 2. 추가/업데이트된 항목 처리
+    // 리스트 전체가 완전히 바뀌는 것보다, 기존 위치 유지하면서 업데이트하는 것이 중요
+    // 여기서는 간단히 새로 추가된 것만 감지하거나, 데이터 갱신
+    for (int i = 0; i < newGroups.length; i++) {
+      final newItem = newGroups[i];
+      final index = _displayedLikedGroups.indexWhere((g) => g.id == newItem.id);
+
+      if (index != -1) {
+        // 이미 있으면 업데이트 (좋아요 수 변경 등 반영)
+        _displayedLikedGroups[index] = newItem;
+      } else {
+        // 새로 추가됨 (다른 탭에서 찜 했을 때)
+        // 맨 앞에 추가하거나 적절한 위치에 추가
+        _displayedLikedGroups.insert(i, newItem);
+        _listKey.currentState?.insertItem(i);
+      }
+    }
+    
+    // 비어있게 된 경우 화면 갱신을 위해 setState 호출 필요할 수 있음
+    if (_displayedLikedGroups.isEmpty && newGroups.isEmpty) {
+      setState(() {});
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
-    // ★ StreamBuilder로 DB 데이터 감시
+    // ★ 찜 목록일 경우 AnimatedList 반환
+    if (widget.filterType == 'liked') {
+      if (_displayedLikedGroups.isEmpty && _subscription == null) {
+        // 아직 로딩 전이거나 데이터 없음 (초기 상태)
+        // Subscription이 있으면 데이터가 없는 것이므로 빈 화면 표시
+         return _buildEmptyView();
+      }
+      
+      if (_displayedLikedGroups.isEmpty) {
+        return _buildEmptyView();
+      }
+
+      return ListView( // AnimatedList를 감싸서 패딩 등 처리
+        padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
+        children: [
+           AnimatedList(
+            key: _listKey,
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(), // 외부 ListView 스크롤 사용
+            initialItemCount: _displayedLikedGroups.length,
+            itemBuilder: (context, index, animation) {
+              if (index >= _displayedLikedGroups.length) return const SizedBox();
+              return _buildAnimatedGroupItem(_displayedLikedGroups[index], animation);
+            },
+          ),
+        ],
+      );
+    }
+
+    // 기존 로직 (전체, 내 모집)
     return StreamBuilder<List<Group>>(
-      stream: _groupStream, // ★ 캐싱된 스트림 사용
+      stream: _groupStream, 
       builder: (context, snapshot) {
         // 1. 로딩 중
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -59,27 +163,7 @@ class _GroupListScreenState extends State<GroupListScreen> {
         // 3. 데이터 없음 또는 빈 리스트
         final groups = snapshot.data ?? [];
         if (groups.isEmpty) {
-          String emptyMsg = "지금은 모집 중인 글이 없어요.";
-          if (widget.filterType == 'my') emptyMsg = "내가 만든 모집이 없어요.";
-          if (widget.filterType == 'liked') emptyMsg = "찜한 모집이 없어요.";
-
-          return Center(
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(
-                  Icons.assignment_outlined,
-                  size: 48,
-                  color: Colors.grey[300],
-                ),
-                const SizedBox(height: 16),
-                Text(
-                  emptyMsg,
-                  style: TextStyle(color: Colors.grey[500], fontSize: 15),
-                ),
-              ],
-            ),
-          );
+          return _buildEmptyView();
         }
 
         // 4. 리스트 출력
@@ -96,12 +180,14 @@ class _GroupListScreenState extends State<GroupListScreen> {
           generalGroups = allGroups;
         }
 
-        // ★ 정렬 로직 추가: 마감된 것은 맨 뒤로 (Partitioning)
-        officialGroups = [
-          ...officialGroups.where((g) => !g.isExpired),
-          ...officialGroups.where((g) => g.isExpired),
-        ];
-
+        // 정렬 로직: 마감된 것은 맨 뒤로
+        if (widget.filterType == 'all') {
+             officialGroups = [
+            ...officialGroups.where((g) => !g.isExpired),
+            ...officialGroups.where((g) => g.isExpired),
+          ];
+        }
+       
         generalGroups = [
           ...generalGroups.where((g) => !g.isExpired),
           ...generalGroups.where((g) => g.isExpired),
@@ -110,8 +196,8 @@ class _GroupListScreenState extends State<GroupListScreen> {
         return ListView(
           padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
           children: [
-            // ★ 1. 공식(학생회) 섹션 (가로 스크롤)
-            if (officialGroups.isNotEmpty) ...[
+            // 1. 공식(학생회) 섹션 (가로 스크롤) - 전체 목록일 때만
+            if (widget.filterType == 'all' && officialGroups.isNotEmpty) ...[
               SizedBox(
                 height: 170, // 카드 높이 지정
                 child: ListView.separated(
@@ -127,18 +213,10 @@ class _GroupListScreenState extends State<GroupListScreen> {
               const SizedBox(height: 24), // 섹션 간 간격
             ],
 
-            // ★ 2. 일반 공고 리스트
-            if (generalGroups.isEmpty)
-              const Padding(
-                padding: EdgeInsets.only(top: 40),
-                child: Center(
-                  child: Text(
-                    "등록된 모집이 없어요.",
-                    style: TextStyle(color: Colors.grey),
-                  ),
-                ),
-              )
-            else
+            // 2. 일반 공고 리스트
+            if (generalGroups.isEmpty && officialGroups.isEmpty)
+               _buildEmptyView() // 데이터는 있는데 필터링 후 없을 경우
+            else if (generalGroups.isNotEmpty)
               ...generalGroups.map((group) {
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 16),
@@ -151,6 +229,46 @@ class _GroupListScreenState extends State<GroupListScreen> {
     );
   }
 
+  Widget _buildEmptyView() {
+    String emptyMsg = "지금은 모집 중인 글이 없어요.";
+    if (widget.filterType == 'my') emptyMsg = "내가 만든 모집이 없어요.";
+    if (widget.filterType == 'liked') emptyMsg = "찜한 모집이 없어요.";
+
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(
+            Icons.assignment_outlined,
+            size: 48,
+            color: Colors.grey[300],
+          ),
+          const SizedBox(height: 16),
+          Text(
+            emptyMsg,
+            style: TextStyle(color: Colors.grey[500], fontSize: 15),
+          ),
+        ],
+      ),
+    );
+  }
+
+  // ★ 애니메이션 아이템 빌더
+  Widget _buildAnimatedGroupItem(Group group, Animation<double> animation) {
+    return FadeTransition(
+      opacity: CurvedAnimation(parent: animation, curve: Curves.easeInOut),
+      child: ScaleTransition(
+        scale: CurvedAnimation(parent: animation, curve: Curves.easeInOutCubic),
+        child: Padding(
+          padding: const EdgeInsets.only(bottom: 16),
+          child: _buildGroupCard(group),
+        ),
+      ),
+    );
+  }
+
+  // ... (나머지 _buildOfficialCard, _buildGroupCard, _confirmDelete 메서드는 그대로 유지)
+  
   // ★ 공식 공고 카드 위젯
   Widget _buildOfficialCard(Group group) {
     bool isExpired = group.isExpired;
@@ -279,11 +397,6 @@ class _GroupListScreenState extends State<GroupListScreen> {
             backgroundColor: const Color(0xFFEF9A9A),
             foregroundColor: Colors.white,
             borderRadius: BorderRadius.circular(20),
-            // CustomSlidableAction does not support 'icon' or 'label' directly with border,
-            // but we can use 'child' to render them. However, usually CustomSlidableAction
-            // is used when we want full control.
-            // Actually, SlidableAction might maintain internal layout.
-            // Let's try wrapping the icon and label in a Column centered.
             child: Container(
               decoration: BoxDecoration(
                 border: Border.all(color: const Color(0xFFE5E8EB)), // 회색 보더 추가
@@ -354,25 +467,17 @@ class _GroupListScreenState extends State<GroupListScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      GestureDetector(
-                        onTap: () {
-                          // ★ DB 찜 토글 호출
-                          _firestoreService.toggleGroupLike(
-                            group.id,
-                            group.isLiked,
-                          );
-                        },
-                        child: Padding(
-                          padding: const EdgeInsets.only(left: 8, bottom: 8),
-                          child: Icon(
-                            group.isLiked
-                                ? Icons.favorite_rounded
-                                : Icons.favorite_border_rounded,
-                            color: group.isLiked
-                                ? const Color(0xFFFF4E4E)
-                                : const Color(0xFFB0B8C1),
-                            size: 24,
-                          ),
+                      Padding( // 패딩 조정
+                        padding: const EdgeInsets.only(left: 8),
+                        child: LikeButton(
+                          isLiked: group.isLiked,
+                          likeCount: group.likeCount,
+                          onTap: () {
+                            _firestoreService.toggleGroupLike(
+                              group.id,
+                              group.isLiked,
+                            );
+                          },
                         ),
                       ),
                     ],

@@ -17,7 +17,8 @@ class _ScrapScreenState extends State<ScrapScreen> {
   final ScrollController _scrollController = ScrollController(); // ★ 추가
 
   String _selectedCategory = "전체";
-  final List<String> _categories = ["전체", "긴급", "학사", "장학", "취업", "행사", "광고"];
+  // Updated category list as requested
+  final List<String> _categories = ["전체", "학사", "장학", "취업", "공모전", "학과행사", "외부행사"];
   bool _isScrolled = false;
 
   String _searchQuery = ""; // 검색어 변수 추가
@@ -57,9 +58,13 @@ class _ScrapScreenState extends State<ScrapScreen> {
     // 1. 현재 조건(스크랩+카테고리+검색어)에 맞는 새 리스트 생성
     List<Notice> newFiltered = allNotices.where((n) {
       if (!n.isScraped) return false;
-      if (_selectedCategory != "전체" && n.category != _selectedCategory) {
-        return false;
+      
+      // Category Filtering
+      if (_selectedCategory != "전체") {
+        // exact category match
+        if (n.category != _selectedCategory) return false; 
       }
+
       if (_searchQuery.isNotEmpty) {
         final query = _searchQuery.toLowerCase();
         if (!n.title.toLowerCase().contains(query) &&
@@ -150,16 +155,18 @@ class _ScrapScreenState extends State<ScrapScreen> {
 
   Color _getCategoryColor(String category) {
     switch (category) {
-      case "긴급":
-        return const Color(0xFFFF8A80);
       case "학사":
-        return const Color(0xFF82B1FF);
+        return const Color(0xFF90CAF9);
       case "장학":
-        return const Color(0xFFFFD180);
+        return const Color(0xFFFFCC80);
       case "취업":
         return const Color(0xFFA5D6A7);
-      case "행사":
+      case "학과행사":
         return const Color(0xFFCE93D8);
+      case "외부행사":
+        return const Color(0xFF9E9E9E);
+      case "공모전":
+        return const Color(0xFFFFEE58);
       case "광고":
         return const Color(0xFFB0BEC5);
       default:

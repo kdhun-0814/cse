@@ -1,4 +1,6 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'dart:ui'; // for lerpDouble
 import 'package:table_calendar/table_calendar.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -21,9 +23,9 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> {
+class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
   final FirestoreService _firestoreService = FirestoreService();
-  late Map<String, Stream<int>> _noticeStreams;
+
 
   // 기본 위젯 설정 (초기값 및 폴백)
   final List<HomeWidgetConfig> _defaultWidgets = [
@@ -38,9 +40,41 @@ class _HomeScreenState extends State<HomeScreen> {
   bool _isLoadingWidgets = true;
   String _userRole = ''; // NEW
 
+  // 스크롤 제어 및 구분선 로직
+  final ScrollController _scrollController = ScrollController();
+  bool _isScrolled = false;
+
+  // 플로팅 메시지 애니메이션 제어
+  late AnimationController _messageController;
+  late Animation<double> _messageAnimation;
+  OverlayEntry? _overlayEntry;
+
   @override
   void initState() {
     super.initState();
+
+    // 젤리 애니메이션 초기화 (Elastic 효과)
+    _messageController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
+      reverseDuration: const Duration(milliseconds: 300),
+    );
+
+    _messageAnimation = CurvedAnimation(
+      parent: _messageController,
+      curve: Curves.elasticOut,
+      reverseCurve: Curves.easeInBack,
+    );
+
+    // 스크롤 리스너: 10px 이상 스크롤 시 구분선 표시
+    _scrollController.addListener(() {
+      if (_scrollController.offset > 10) {
+        if (!_isScrolled) setState(() => _isScrolled = true);
+      } else {
+        if (_isScrolled) setState(() => _isScrolled = false);
+      }
+    });
+
     _loadWidgetConfig();
 
     // 권한 가져오기
@@ -52,14 +86,87 @@ class _HomeScreenState extends State<HomeScreen> {
       }
     });
 
-    _noticeStreams = {
-      "긴급": _firestoreService.getNoticeCount("긴급"),
-      "학사": _firestoreService.getNoticeCount("학사"),
-      "장학": _firestoreService.getNoticeCount("장학"),
-      "취업": _firestoreService.getNoticeCount("취업"),
-      "행사": _firestoreService.getNoticeCount("행사"),
-      "광고": _firestoreService.getNoticeCount("광고"),
-    };
+  }
+
+  @override
+  void dispose() {
+    _messageController.dispose();
+    _removeOverlay(); // 안전하게 오버레이 제거
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _showFloatingMessage() {
+    if (_overlayEntry != null) return; // 이미 표시 중이면 무시
+
+    _overlayEntry = OverlayEntry(
+      builder: (context) => Positioned(
+        bottom: 120,
+        left: 0,
+        right: 0,
+        child: Material(
+          color: Colors.transparent,
+          child: ScaleTransition(
+            scale: _messageAnimation,
+            child: Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(
+                    horizontal: 20, vertical: 12),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3182F6).withOpacity(0.9), // Toss Blue
+                  borderRadius: BorderRadius.circular(30),
+                  border: Border.all(
+                    color: const Color(0xFFE5E8EB).withOpacity(0.5),
+                    width: 1,
+                  ),
+                  boxShadow: [
+                    BoxShadow(
+                      color: const Color(0xFF3182F6).withOpacity(0.3),
+                      blurRadius: 8,
+                      offset: const Offset(0, 4),
+                    ),
+                  ],
+                ),
+                child: const Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Icon(Icons.touch_app_rounded,
+                        color: Colors.white, size: 18),
+                    SizedBox(width: 8),
+                    Text(
+                      "드래그하여 순서를 조정해보세요",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+
+    // 드래그 위젯(DragProxy)보다 나중에 그려지도록 프레임 후반부에 오버레이 삽입
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted || _overlayEntry == null) return;
+      Overlay.of(context).insert(_overlayEntry!);
+      _messageController.forward(from: 0.0);
+    });
+  }
+
+  void _hideFloatingMessage() {
+    _messageController.reverse().then((_) {
+      _removeOverlay();
+    });
+  }
+
+  void _removeOverlay() {
+    _overlayEntry?.remove();
+    _overlayEntry = null;
   }
 
   void _loadWidgetConfig() {
@@ -90,7 +197,8 @@ class _HomeScreenState extends State<HomeScreen> {
     });
   }
 
-  bool _isEditMode = false; // NEW: 편집 모드 상태
+  bool _isDragging = false; // 드래그 상태 추적
+
 
   @override
   Widget build(BuildContext context) {
@@ -101,20 +209,26 @@ class _HomeScreenState extends State<HomeScreen> {
 
     return Scaffold(
       drawer: _buildSideMenu(context),
-      backgroundColor: _isEditMode
-          ? const Color(0xFFE0E0E0)
-          : const Color(0xFFF2F4F6), // White -> F2F4F6
+      backgroundColor: const Color(0xFFF2F4F6),
       appBar: AppBar(
         elevation: 0,
         scrolledUnderElevation: 0,
-        backgroundColor: const Color(0xFFF2F4F6), // White -> F2F4F6
-        leading: Builder(
-          builder: (context) => IconButton(
-            icon: const Icon(Icons.menu_rounded, color: Color(0xFF4E5968)),
-            onPressed: () {
-              Scaffold.of(context).openDrawer();
-            },
-          ),
+        backgroundColor: const Color(0xFFF2F4F6),
+        shape: _isScrolled
+            ? const Border(
+                bottom: BorderSide(color: Color(0xFFE5E8EB), width: 1),
+              )
+            : null,
+        leading: IconButton(
+          icon: const Icon(Icons.dashboard_customize_rounded,
+              color: Color(0xFF4E5968)),
+          onPressed: () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const WidgetManagementScreen(),
+              ),
+            );
+          },
         ),
         title: const Text(
           '홈',
@@ -126,40 +240,6 @@ class _HomeScreenState extends State<HomeScreen> {
         ),
         centerTitle: true,
         actions: [
-          // 편집 모드 토글 버튼
-          if (!_isEditMode)
-            IconButton(
-              icon: const Icon(
-                Icons.open_with_rounded,
-                color: Color(0xFF4E5968),
-              ), // 연필 -> 4방향 화살표
-              tooltip: "홈 화면 편집",
-              onPressed: () {
-                setState(() {
-                  _isEditMode = true;
-                });
-              },
-            ),
-
-          // 편집 완료 버튼 (편집 모드일 때만 표시)
-          if (_isEditMode)
-            TextButton(
-              onPressed: () {
-                setState(() {
-                  _isEditMode = false;
-                });
-                _saveWidgetConfig(); // 변경사항 저장
-              },
-              child: const Text(
-                "완료",
-                style: TextStyle(
-                  color: Color(0xFF3182F6),
-                  fontWeight: FontWeight.bold,
-                  fontSize: 16,
-                ),
-              ),
-            ),
-
           IconButton(
             icon: const Icon(
               Icons.notifications_none_rounded,
@@ -167,222 +247,117 @@ class _HomeScreenState extends State<HomeScreen> {
             ),
             onPressed: () {},
           ),
+          Builder(
+            builder: (context) => IconButton(
+              icon: const Icon(Icons.menu_rounded, color: Color(0xFF4E5968)),
+              onPressed: () {
+                Scaffold.of(context).openDrawer();
+              },
+            ),
+          ),
+          const SizedBox(width: 8),
         ],
       ),
       body: _isLoadingWidgets
           ? const Center(child: CircularProgressIndicator())
-          : ReorderableListView(
-              buildDefaultDragHandles: false, // 기본 드래그 핸들 비활성화 (조건부 적용 위해)
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
-              header: _isEditMode
-                  ? _buildAddWidgetHeader(hiddenWidgets) // 위젯 추가 버튼 영역
-                  : const SizedBox.shrink(),
-              onReorder: (oldIndex, newIndex) {
-                setState(() {
-                  if (oldIndex < newIndex) {
-                    newIndex -= 1;
-                  }
-                  final item = visibleWidgets.removeAt(oldIndex);
-                  visibleWidgets.insert(newIndex, item);
-                  _currentWidgets = [...visibleWidgets, ...hiddenWidgets];
-                });
-              },
+          : Stack(
               children: [
-                for (int i = 0; i < visibleWidgets.length; i++)
-                  _buildDraggableItem(
-                    visibleWidgets[i],
-                    Key(visibleWidgets[i].id),
-                    i, // index 전달
-                  ),
+                ReorderableListView(
+                  scrollController: _scrollController,
+                  buildDefaultDragHandles: false,
+                  proxyDecorator: (child, index, animation) {
+                    return AnimatedBuilder(
+                      animation: animation,
+                      builder: (context, child) {
+                        final double animValue = Curves.elasticOut.transform(animation.value);
+                        final double scale = lerpDouble(1.0, 1.05, animValue)!;
+                        return Transform.scale(
+                          scale: scale,
+                          child: Material(
+                            color: Colors.transparent,
+                            elevation: 0,
+                            // Stack을 사용하여 위젯 위에 파란색 테두리 오버레이 추가
+                            child: Stack(
+                              children: [
+                                child!,
+                                Positioned(
+                                  top: 0,
+                                  left: 0,
+                                  right: 0,
+                                  bottom: 24, // 아이템의 bottom margin 만큼 제외하고 테두리 표시
+                                  child: Container(
+                                    decoration: BoxDecoration(
+                                      color: Colors.transparent,
+                                      borderRadius: BorderRadius.circular(24), // 대략적인 위젯 반경
+                                      border: Border.all(
+                                        color: const Color(0xFF3182F6), // Toss Blue
+                                        width: 2,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      child: child,
+                    );
+                  },
+                  padding: const EdgeInsets.fromLTRB(20, 10, 20, 40),
+                  onReorderStart: (index) {
+                    // 드래그 시작 시 진동 및 배경 변경
+                    HapticFeedback.lightImpact();
+                    setState(() {
+                      _isDragging = true;
+                    });
+                    _showFloatingMessage(); // 오버레이 표시
+                  },
+                  onReorderEnd: (index) {
+                    setState(() {
+                      _isDragging = false;
+                    });
+                     _hideFloatingMessage(); // 오버레이 숨김
+                  },
+                  onReorder: (oldIndex, newIndex) {
+                    setState(() {
+                      if (oldIndex < newIndex) {
+                        newIndex -= 1;
+                      }
+                      final item = visibleWidgets.removeAt(oldIndex);
+                      visibleWidgets.insert(newIndex, item);
+                      _currentWidgets = [...visibleWidgets, ...hiddenWidgets];
+                      _saveWidgetConfig(); // 즉시 저장
+                      _isDragging = false; // 드래그 완료 처리
+                    });
+                     _hideFloatingMessage(); // 오버레이 숨김
+                  },
+                  children: [
+                    for (int i = 0; i < visibleWidgets.length; i++)
+                      _buildDraggableItem(
+                        visibleWidgets[i],
+                        Key(visibleWidgets[i].id),
+                        i,
+                      ),
+                  ],
+                ),
               ],
             ),
     );
   }
 
-  // ... (Header parts skipped, assumed unchanged or handled by partial replacement if needed,
-  // but here we are replacing build method primarily so Header helper is fine if outside range,
-  // wait, range 124 to 349 covers build method and _buildDraggableItem)
 
-  // ... Oops I need to include _buildDraggableItem in the ReplacementContent
-  // since I am replacing the whole block including it?
-  // The Range 124-349 covers `actions` to `_buildDraggableItem`.
-  // I must provide _buildAddWidgetHeader and _getWidgetName if they act as spacer or just leave them if not in range.
-  // Actually, I should split this into two replacements or include everything in between.
-  // Let's replace the `build` method and `_buildDraggableItem`.
-  // Intermediate methods `_buildAddWidgetHeader` and `_getWidgetName` are between `build` and `_buildDraggableItem`.
-  // I will include them unmodified in the replacement content to be safe or use separate calls.
-  // Using MultiReplace is better if they are far apart.
-  // They are contigous in file: `build` -> `_buildAddWidgetHeader` -> `_getWidgetName` -> `_buildDraggableItem`.
-  // I will replace all of them.
-
-  // ... (Rest of ReplacementContent)
-
-  // 위젯 추가 헤더 (+ 버튼)
-  Widget _buildAddWidgetHeader(List<HomeWidgetConfig> hiddenWidgets) {
-    if (hiddenWidgets.isEmpty) return const SizedBox.shrink();
-
-    return Container(
-      margin: const EdgeInsets.only(bottom: 20),
-      child: Column(
-        children: [
-          SingleChildScrollView(
-            scrollDirection: Axis.horizontal,
-            child: Row(
-              children: hiddenWidgets.map((config) {
-                return GestureDetector(
-                  onTap: () {
-                    setState(() {
-                      config.isVisible = true;
-                      _currentWidgets.remove(config);
-                      _currentWidgets.insert(0, config);
-                    });
-                  },
-                  child: Container(
-                    margin: const EdgeInsets.only(right: 12),
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 16,
-                      vertical: 12,
-                    ),
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(20),
-                      border: Border.all(color: const Color(0xFF3182F6)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.black.withOpacity(0.05),
-                          blurRadius: 4,
-                          offset: const Offset(0, 2),
-                        ),
-                      ],
-                    ),
-                    child: Row(
-                      children: [
-                        const Icon(
-                          Icons.add_circle_rounded,
-                          color: Color(0xFF3182F6),
-                          size: 20,
-                        ),
-                        const SizedBox(width: 8),
-                        Text(
-                          _getWidgetName(config.id),
-                          style: const TextStyle(
-                            color: Color(0xFF3182F6),
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              }).toList(),
-            ),
-          ),
-          const SizedBox(height: 10),
-          const Divider(),
-        ],
-      ),
-    );
-  }
-
-  String _getWidgetName(String id) {
-    switch (id) {
-      case 'urgent_notice':
-        return '긴급 공지';
-      case 'important_notice':
-        return '중요 공지';
-      case 'calendar':
-        return '오늘의 일정';
-      case 'categories':
-        return '카테고리';
-      case 'hot_notice':
-        return 'HOT 공지';
-      default:
-        return '위젯';
-    }
-  }
-
-  // 드래그 가능한 아이템 래퍼 (X 버튼 포함)
+  // 드래그 가능한 아이템 래퍼
   Widget _buildDraggableItem(HomeWidgetConfig config, Key key, int index) {
-    Widget content = Stack(
-      clipBehavior: Clip.none,
-      children: [
-        // 실제 위젯 콘텐츠
-        AbsorbPointer(
-          absorbing: _isEditMode, // 편집 모드일 때 내부 터치 비활성화 (드래그 용이)
-          child: _buildWidgetContent(config.id),
-        ),
-
-        // 편집 모드 UI (삭제 버튼 + 드래그 딤드/핸들 효과)
-        if (_isEditMode) ...[
-          // 컨텐츠 위에 살짝 덮는 투명 레이어 (터치 인터셉트용)
-          Positioned.fill(child: Container(color: Colors.transparent)),
-
-          // 삭제 버튼
-          Positioned(
-            top: -12,
-            right: -8,
-            child: GestureDetector(
-              onTap: () {
-                setState(() {
-                  config.isVisible = false;
-                  _saveWidgetConfig();
-                });
-              },
-              child: Container(
-                decoration: BoxDecoration(
-                  color: Colors.grey[200],
-                  shape: BoxShape.circle,
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.1),
-                      blurRadius: 4,
-                    ),
-                  ],
-                ),
-                padding: const EdgeInsets.all(2),
-                child: Container(
-                  padding: const EdgeInsets.all(4),
-                  decoration: const BoxDecoration(
-                    color: Color(0xFFEF5350), // Red
-                    shape: BoxShape.circle,
-                  ),
-                  child: const Icon(
-                    Icons.close_rounded,
-                    color: Colors.white,
-                    size: 18,
-                  ),
-                ),
-              ),
-            ),
-          ),
-        ],
-      ],
-    );
-
-    // 전체 컨테이너 (여백 포함)
     Widget itemContainer = Container(
       margin: const EdgeInsets.only(bottom: 24),
-      child: content,
+      child: _buildWidgetContent(config.id),
     );
 
-    // 편집 모드일 때: 드래그 리스너 적용 (KEY 필수)
-    if (_isEditMode) {
-      return ReorderableDragStartListener(
-        key: key, // ★ 핵심: Key를 여기에 전달
-        index: index,
-        child: itemContainer,
-      );
-    }
-
-    // 일반 모드일 때: 롱프레스 감지 (KEY 필수)
-    return GestureDetector(
-      key: key, // ★ 핵심: Key를 여기에 전달
-      onLongPress: () {
-        setState(() {
-          _isEditMode = true;
-        });
-        // 햅틱 피드백 (선택 사항)
-      },
+    // ReorderableDelayedDragStartListener 사용으로 롱프레스 시 드래그 활성화
+    return ReorderableDelayedDragStartListener(
+      key: key,
+      index: index,
       child: itemContainer,
     );
   }
@@ -391,15 +366,15 @@ class _HomeScreenState extends State<HomeScreen> {
   Widget _buildWidgetContent(String id) {
     switch (id) {
       case 'urgent_notice':
-        return UrgentNoticeWidget(forceShow: _isEditMode);
+        return UrgentNoticeWidget(forceShow: false);
       case 'important_notice':
-        return ImportantNoticeWidget(forceShow: _isEditMode);
+        return ImportantNoticeWidget(forceShow: false);
       case 'calendar':
         return _buildTodaySchedule();
       case 'categories':
         return CategoryGridWidget(firestoreService: _firestoreService);
       case 'hot_notice':
-        return HotNoticeWidget(forceShow: _isEditMode);
+        return HotNoticeWidget(forceShow: false);
       default:
         return const SizedBox.shrink();
     }
@@ -495,13 +470,7 @@ class _HomeScreenState extends State<HomeScreen> {
           _buildDrawerItem(Icons.person_outline_rounded, '내 정보 관리', () {
             // 내 정보 관리 페이지로 이동
           }),
-          _buildDrawerItem(Icons.dashboard_customize_rounded, '홈 위젯 관리', () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const WidgetManagementScreen(),
-              ),
-            );
-          }),
+          // 홈 위젯 관리 메뉴 제거 (왼쪽 상단으로 이동)
           // 관리자 메뉴
           if (_userRole == 'ADMIN') ...[
             const Padding(
@@ -747,17 +716,18 @@ class _HomeScreenState extends State<HomeScreen> {
               ),
               const SizedBox(width: 10),
 
-              // 오른쪽 미니 달력
+              // 오른쪽 미니 달력 (제스처 무시하여 드래그 가능하게 함)
               Expanded(
                 flex: 3,
-                child: TableCalendar(
-                  firstDay: DateTime.utc(2020, 1, 1),
-                  lastDay: DateTime.utc(2030, 12, 31),
-                  focusedDay: now,
-                  calendarFormat: CalendarFormat.month,
-                  headerVisible: false,
-                  daysOfWeekHeight: 20,
-                  rowHeight: 40,
+                child: IgnorePointer(
+                  child: TableCalendar(
+                    firstDay: DateTime.utc(2020, 1, 1),
+                    lastDay: DateTime.utc(2030, 12, 31),
+                    focusedDay: now,
+                    calendarFormat: CalendarFormat.month,
+                    headerVisible: false,
+                    daysOfWeekHeight: 20,
+                    rowHeight: 40,
 
                   eventLoader: (day) {
                     if (!snapshot.hasData) return [];
@@ -892,6 +862,7 @@ class _HomeScreenState extends State<HomeScreen> {
                     weekendStyle: TextStyle(fontSize: 11, color: Colors.grey),
                     weekdayStyle: TextStyle(fontSize: 11, color: Colors.grey),
                   ),
+                  ),
                 ),
               ),
             ],
@@ -908,8 +879,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   Color _getCategoryColor(String category) {
     switch (category) {
-      case "긴급":
-        return const Color(0xFFFF8A80);
       case "학사":
         return const Color(0xFF82B1FF);
       case "장학":
@@ -918,8 +887,7 @@ class _HomeScreenState extends State<HomeScreen> {
         return const Color(0xFFA5D6A7);
       case "행사":
         return const Color(0xFFCE93D8);
-      case "광고":
-        return const Color(0xFFB0BEC5);
+
       default:
         return const Color(0xFF3182F6);
     }

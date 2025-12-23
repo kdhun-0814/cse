@@ -25,52 +25,95 @@ class HotNoticeWidget extends StatelessWidget {
             .toList();
 
         if (notices.isEmpty) {
-          if (forceShow) {
-            return Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: Colors.grey[300]!,
-                  style: BorderStyle.solid,
+          return Container(
+            width: double.infinity,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFFE5E8EB)),
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.fromLTRB(20, 20, 20, 16),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.whatshot_rounded,
+                        color: Color(0xFFFF5252),
+                        size: 24,
+                      ),
+                      const SizedBox(width: 8),
+                      const Text(
+                        "HOT 공지",
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF191F28),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              child: const Center(
-                child: Text(
-                  "HOT 공지 (표시할 내용 없음)",
-                  style: TextStyle(color: Colors.grey),
+                const Divider(height: 1, color: Color(0xFFF2F4F6)),
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 40),
+                  child: Center(
+                    child: Text(
+                      "아직은 HOT 공지가 없어요",
+                      style: TextStyle(
+                        color: Color(0xFF8B95A1),
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ),
                 ),
-              ),
-            );
-          }
-          // 데이터 없으면 숨김
-          return const SizedBox.shrink();
+              ],
+            ),
+          );
         }
 
-        return Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 4),
-              child: Text(
-                "🔥 HOT 공지",
-                style: TextStyle(
-                  fontSize: 20,
-                  fontWeight: FontWeight.bold,
-                  color: Color(0xFF191F28),
+        return Container(
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(24),
+            border: Border.all(color: const Color(0xFFE5E8EB)),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.03),
+                blurRadius: 10,
+                offset: const Offset(0, 4),
+              ),
+            ],
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Padding(
+                padding: EdgeInsets.fromLTRB(20, 20, 20, 16),
+                child: Row(
+                  children: [
+                    const Icon(
+                      Icons.whatshot_rounded,
+                      color: Color(0xFFFF5252),
+                      size: 24,
+                    ),
+                    const SizedBox(width: 8),
+                    const Text(
+                      "HOT 공지",
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF191F28),
+                      ),
+                    ),
+                  ],
                 ),
               ),
-            ),
-            const SizedBox(height: 16),
-            Container(
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(24),
-                border: Border.all(color: const Color(0xFFE5E8EB)),
-              ),
-              child: Column(
+              const Divider(height: 1, color: Color(0xFFF2F4F6)),
+              Column(
                 children: notices.asMap().entries.map((entry) {
                   final index = entry.key;
                   final notice = entry.value;
@@ -142,8 +185,8 @@ class HotNoticeWidget extends StatelessWidget {
                   );
                 }).toList(),
               ),
-            ),
-          ],
+            ],
+          ),
         );
       },
     );

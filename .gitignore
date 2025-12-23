@@ -30,3 +30,9 @@ ai_server/model.pkl
 # --- 가상환경 폴더 (혹시 남아있다면) ---
 ai_server/.venv/
 .venv/
+
+# .gitignore 파일 내용
+/build/
+build/
+**/build/
+.dart_tool/

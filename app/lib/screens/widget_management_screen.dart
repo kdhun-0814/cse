@@ -97,22 +97,56 @@ class _WidgetManagementScreenState extends State<WidgetManagementScreen> {
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
-          : ReorderableListView(
-              padding: const EdgeInsets.symmetric(vertical: 20),
+          : Column(
               children: [
-                for (int i = 0; i < _currentWidgets.length; i++)
-                  _buildListItem(i, _currentWidgets[i]),
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 24,
+                    vertical: 16,
+                  ),
+                  color: const Color(0xFFF2F4F6),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.info_outline_rounded,
+                        size: 20,
+                        color: Color(0xFF8B95A1),
+                      ),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          "홈 화면에서 위젯을 꾹 눌러 순서를 변경할 수 있어요.",
+                          style: const TextStyle(
+                            color: Color(0xFF8B95A1),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Expanded(
+                  child: ReorderableListView(
+                    padding: const EdgeInsets.only(bottom: 20),
+                    children: [
+                      for (int i = 0; i < _currentWidgets.length; i++)
+                        _buildListItem(i, _currentWidgets[i]),
+                    ],
+                    onReorder: (int oldIndex, int newIndex) {
+                      setState(() {
+                        if (oldIndex < newIndex) {
+                          newIndex -= 1;
+                        }
+                        final item = _currentWidgets.removeAt(oldIndex);
+                        _currentWidgets.insert(newIndex, item);
+                      });
+                      _saveConfig(); // 순서 변경 즉시 저장
+                    },
+                  ),
+                ),
               ],
-              onReorder: (int oldIndex, int newIndex) {
-                setState(() {
-                  if (oldIndex < newIndex) {
-                    newIndex -= 1;
-                  }
-                  final item = _currentWidgets.removeAt(oldIndex);
-                  _currentWidgets.insert(newIndex, item);
-                });
-                _saveConfig(); // 순서 변경 즉시 저장
-              },
             ),
     );
   }
