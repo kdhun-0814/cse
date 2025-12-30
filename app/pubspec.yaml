@@ -46,6 +46,7 @@ dependencies:
   url_launcher: ^6.2.1
   image_picker: ^1.2.1
   firebase_storage: ^13.0.4
+  model_viewer_plus: ^1.7.0
 
 dev_dependencies:
   flutter_test:
@@ -74,6 +75,7 @@ flutter:
     - assets/images/onboarding_community.jpg
     - assets/images/onboarding_map.jpg
     - assets/images/onboarding_calender.jpg
+    - assets/3d/
    
   # To add assets to your application, add an assets section, like this:
   # assets:

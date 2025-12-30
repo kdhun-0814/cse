@@ -213,7 +213,8 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                   } else if (widget.title == '중요 공지') {
                     categoryMatch = n.isImportant ?? false;
                   } else {
-                    categoryMatch = n.category == widget.title ||
+                    categoryMatch =
+                        n.category == widget.title ||
                         widget.title.contains(n.category);
                   }
 
@@ -232,6 +233,15 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
 
                   return true;
                 }).toList();
+
+                // 정렬 로직: 스크랩된 공지 상단 고정 (스크랩 여부 -> 날짜 내림차순)
+                filteredNotices.sort((a, b) {
+                  if (a.isScraped != b.isScraped) {
+                    return a.isScraped ? -1 : 1; // 스크랩된 것이 위로
+                  }
+                  // 스크랩 여부가 같으면 날짜 내림차순 (문자열 비교 YYYY.MM.DD)
+                  return b.date.compareTo(a.date);
+                });
 
                 if (filteredNotices.isEmpty) {
                   return const Center(

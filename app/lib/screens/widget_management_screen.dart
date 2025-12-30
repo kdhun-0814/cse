@@ -15,6 +15,7 @@ class _WidgetManagementScreenState extends State<WidgetManagementScreen> {
   // 기본 위젯 설정 (초기값)
   final List<HomeWidgetConfig> _defaultWidgets = [
     HomeWidgetConfig(id: 'urgent_notice', isVisible: true),
+    HomeWidgetConfig(id: 'notice_search', isVisible: true), // NEW
     HomeWidgetConfig(id: 'important_notice', isVisible: true), // NEW
     HomeWidgetConfig(id: 'calendar', isVisible: true),
     HomeWidgetConfig(id: 'categories', isVisible: true),
@@ -27,6 +28,7 @@ class _WidgetManagementScreenState extends State<WidgetManagementScreen> {
   // 위젯 ID와 표시 이름 매핑
   final Map<String, String> _widgetNames = {
     'urgent_notice': '긴급 공지',
+    'notice_search': '공지사항 통합 검색', // NEW
     'important_notice': '중요 공지', // NEW
     'calendar': '오늘의 일정',
     'categories': '카테고리 메뉴',

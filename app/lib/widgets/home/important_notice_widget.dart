@@ -16,8 +16,10 @@ class ImportantNoticeWidget extends StatefulWidget {
 
 class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
   // Show 3 items at once (1 / 3 = 0.333...)
-  final PageController _pageController = PageController(viewportFraction: 0.333);
-  
+  final PageController _pageController = PageController(
+    viewportFraction: 0.333,
+  );
+
   Timer? _timer;
   List<Notice> _cachedNotices = [];
 
@@ -65,10 +67,10 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
 
         // Auto-scroll logic if more than 3 items
         if (displayNotices.length > 3) {
-           if (_cachedNotices.length != displayNotices.length) {
-             _cachedNotices = displayNotices;
-             _startAutoScroll(displayNotices.length);
-           }
+          if (_cachedNotices.length != displayNotices.length) {
+            _cachedNotices = displayNotices;
+            _startAutoScroll(displayNotices.length);
+          }
         } else {
           _timer?.cancel(); // Stop timer if items reduced to <= 3
         }
@@ -97,7 +99,7 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
                       Text(
                         "중요 공지",
                         style: TextStyle(
-                          fontSize: 18,
+                          fontSize: 22,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF191F28),
                         ),
@@ -156,7 +158,7 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
                         Text(
                           "중요 공지",
                           style: TextStyle(
-                            fontSize: 18,
+                            fontSize: 22,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF191F28),
                           ),
@@ -211,7 +213,10 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
                         // infinite scroll (no itemCount)
                         itemBuilder: (context, index) {
                           final realIndex = index % displayNotices.length;
-                          return _buildNoticeItem(context, displayNotices[realIndex]);
+                          return _buildNoticeItem(
+                            context,
+                            displayNotices[realIndex],
+                          );
                         },
                       ),
                     ),
@@ -226,10 +231,7 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
     return SizedBox(
       height: 52, // Fixed height for alignment
       child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 0, 
-        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
         visualDensity: const VisualDensity(vertical: -4), // Compact
         onTap: () {
           Navigator.push(
@@ -259,10 +261,7 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
         ),
         trailing: Text(
           notice.date.length > 5 ? notice.date.substring(5) : notice.date,
-          style: const TextStyle(
-            fontSize: 12,
-            color: Color(0xFF8B95A1),
-          ),
+          style: const TextStyle(fontSize: 12, color: Color(0xFF8B95A1)),
         ),
       ),
     );

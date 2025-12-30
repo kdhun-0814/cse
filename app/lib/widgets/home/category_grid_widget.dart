@@ -39,8 +39,8 @@ class _CategoryGridWidgetState extends State<CategoryGridWidget> {
                 context,
                 Icons.school_rounded,
                 "학사",
-                const Color(0xFFE3F2FD), // Blue 50
-                const Color(0xFF90CAF9), // Blue 200
+                Colors.grey[100]!, // Background Grey
+                Colors.blue[700]!, // Icon Strong Blue
               ),
             ),
             const SizedBox(width: 12),
@@ -49,8 +49,8 @@ class _CategoryGridWidgetState extends State<CategoryGridWidget> {
                 context,
                 Icons.emoji_events_rounded,
                 "장학",
-                const Color(0xFFFFF3E0), // Orange 50
-                const Color(0xFFFFCC80), // Orange 200
+                Colors.grey[100]!,
+                Colors.orange[700]!,
               ),
             ),
             const SizedBox(width: 12),
@@ -59,8 +59,8 @@ class _CategoryGridWidgetState extends State<CategoryGridWidget> {
                 context,
                 Icons.work_rounded,
                 "취업",
-                const Color(0xFFE8F5E9), // Green 50
-                const Color(0xFFA5D6A7), // Green 200
+                Colors.grey[100]!,
+                Colors.green[700]!,
               ),
             ),
           ],
@@ -73,8 +73,8 @@ class _CategoryGridWidgetState extends State<CategoryGridWidget> {
                 context,
                 Icons.lightbulb_rounded,
                 "공모전",
-                const Color(0xFFFFFDE7), // Yellow 50
-                const Color(0xFFFFEE58), // Yellow 400
+                Colors.grey[100]!,
+                Colors.amber[700]!,
               ),
             ),
             const SizedBox(width: 12),
@@ -83,8 +83,8 @@ class _CategoryGridWidgetState extends State<CategoryGridWidget> {
                 context,
                 Icons.celebration_rounded,
                 "학과행사",
-                const Color(0xFFF3E5F5), // Purple 50
-                const Color(0xFFCE93D8), // Purple 200
+                Colors.grey[100]!,
+                Colors.purple[700]!,
               ),
             ),
             const SizedBox(width: 12),
@@ -93,8 +93,8 @@ class _CategoryGridWidgetState extends State<CategoryGridWidget> {
                 context,
                 Icons.public_rounded,
                 "외부행사",
-                const Color(0xFFF5F5F5), // Grey 100
-                const Color(0xFF9E9E9E), // Grey 500
+                Colors.grey[100]!,
+                Colors.grey[700]!,
               ),
             ),
           ],
@@ -198,8 +198,8 @@ class _CategoryGridWidgetState extends State<CategoryGridWidget> {
             Text(
               label,
               style: const TextStyle(
-                fontSize: 16.5, // 텍스트 크기 증가
-                fontWeight: FontWeight.bold,
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
                 color: Color(0xFF333D4B),
               ),
               textAlign: TextAlign.center,

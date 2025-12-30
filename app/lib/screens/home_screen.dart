@@ -10,11 +10,13 @@ import 'welcome_screen.dart';
 import '../widgets/home/urgent_notice_widget.dart';
 import '../widgets/home/important_notice_widget.dart'; // NEW
 import '../widgets/home/hot_notice_widget.dart';
+import '../widgets/home/notice_search_widget.dart'; // NEW
 import '../widgets/home/category_grid_widget.dart';
 import '../models/home_widget_config.dart';
 import 'widget_management_screen.dart';
 import 'admin/write_notice_screen.dart'; // NEW
 import 'admin/admin_notice_management_screen.dart'; // NEW
+import 'calendar_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -23,13 +25,14 @@ class HomeScreen extends StatefulWidget {
   State<HomeScreen> createState() => _HomeScreenState();
 }
 
-class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateMixin {
+class _HomeScreenState extends State<HomeScreen>
+    with SingleTickerProviderStateMixin {
   final FirestoreService _firestoreService = FirestoreService();
-
 
   // 기본 위젯 설정 (초기값 및 폴백)
   final List<HomeWidgetConfig> _defaultWidgets = [
     HomeWidgetConfig(id: 'urgent_notice', isVisible: true),
+    HomeWidgetConfig(id: 'notice_search', isVisible: true), // NEW
     HomeWidgetConfig(id: 'important_notice', isVisible: true), // NEW
     HomeWidgetConfig(id: 'calendar', isVisible: true),
     HomeWidgetConfig(id: 'categories', isVisible: true),
@@ -85,7 +88,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
         });
       }
     });
-
   }
 
   @override
@@ -111,7 +113,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             child: Center(
               child: Container(
                 padding: const EdgeInsets.symmetric(
-                    horizontal: 20, vertical: 12),
+                  horizontal: 20,
+                  vertical: 12,
+                ),
                 decoration: BoxDecoration(
                   color: const Color(0xFF3182F6).withOpacity(0.9), // Toss Blue
                   borderRadius: BorderRadius.circular(30),
@@ -130,8 +134,11 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                 child: const Row(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                    Icon(Icons.touch_app_rounded,
-                        color: Colors.white, size: 18),
+                    Icon(
+                      Icons.touch_app_rounded,
+                      color: Colors.white,
+                      size: 18,
+                    ),
                     SizedBox(width: 8),
                     Text(
                       "드래그하여 순서를 조정해보세요",
@@ -199,7 +206,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
 
   bool _isDragging = false; // 드래그 상태 추적
 
-
   @override
   Widget build(BuildContext context) {
     // 보여줄 위젯 리스트 (순서대로)
@@ -220,8 +226,10 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
               )
             : null,
         leading: IconButton(
-          icon: const Icon(Icons.dashboard_customize_rounded,
-              color: Color(0xFF4E5968)),
+          icon: const Icon(
+            Icons.dashboard_customize_rounded,
+            color: Color(0xFF4E5968),
+          ),
           onPressed: () {
             Navigator.of(context).push(
               MaterialPageRoute(
@@ -269,7 +277,9 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     return AnimatedBuilder(
                       animation: animation,
                       builder: (context, child) {
-                        final double animValue = Curves.elasticOut.transform(animation.value);
+                        final double animValue = Curves.elasticOut.transform(
+                          animation.value,
+                        );
                         final double scale = lerpDouble(1.0, 1.05, animValue)!;
                         return Transform.scale(
                           scale: scale,
@@ -284,13 +294,18 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                                   top: 0,
                                   left: 0,
                                   right: 0,
-                                  bottom: 24, // 아이템의 bottom margin 만큼 제외하고 테두리 표시
+                                  bottom:
+                                      24, // 아이템의 bottom margin 만큼 제외하고 테두리 표시
                                   child: Container(
                                     decoration: BoxDecoration(
                                       color: Colors.transparent,
-                                      borderRadius: BorderRadius.circular(24), // 대략적인 위젯 반경
+                                      borderRadius: BorderRadius.circular(
+                                        24,
+                                      ), // 대략적인 위젯 반경
                                       border: Border.all(
-                                        color: const Color(0xFF3182F6), // Toss Blue
+                                        color: const Color(
+                                          0xFF3182F6,
+                                        ), // Toss Blue
                                         width: 2,
                                       ),
                                     ),
@@ -317,7 +332,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                     setState(() {
                       _isDragging = false;
                     });
-                     _hideFloatingMessage(); // 오버레이 숨김
+                    _hideFloatingMessage(); // 오버레이 숨김
                   },
                   onReorder: (oldIndex, newIndex) {
                     setState(() {
@@ -330,7 +345,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       _saveWidgetConfig(); // 즉시 저장
                       _isDragging = false; // 드래그 완료 처리
                     });
-                     _hideFloatingMessage(); // 오버레이 숨김
+                    _hideFloatingMessage(); // 오버레이 숨김
                   },
                   children: [
                     for (int i = 0; i < visibleWidgets.length; i++)
@@ -345,7 +360,6 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
             ),
     );
   }
-
 
   // 드래그 가능한 아이템 래퍼
   Widget _buildDraggableItem(HomeWidgetConfig config, Key key, int index) {
@@ -367,6 +381,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
     switch (id) {
       case 'urgent_notice':
         return UrgentNoticeWidget(forceShow: false);
+      case 'notice_search': // NEW
+        return const NoticeSearchWidget();
       case 'important_notice':
         return ImportantNoticeWidget(forceShow: false);
       case 'calendar':
@@ -632,8 +648,8 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                       child: Text(
                         event.title,
                         style: const TextStyle(
-                          fontSize: 15, // 제목표준 : 15
-                          fontWeight: FontWeight.bold,
+                          fontSize: 14, // 제목표준 : 15 -> 14로 약간 축소
+                          fontWeight: FontWeight.w400, // Bold 제거
                           color: Color(0xFF333D4B),
                         ),
                         maxLines: 1,
@@ -656,7 +672,7 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
                   style: const TextStyle(
                     fontSize: 15,
                     color: Color(0xFF8B95A1),
-                    fontWeight: FontWeight.bold,
+                    fontWeight: FontWeight.w400, // Bold 제거
                   ),
                 ),
               ),
@@ -669,203 +685,219 @@ class _HomeScreenState extends State<HomeScreen> with SingleTickerProviderStateM
           );
         }
 
-        return Container(
-          width: double.infinity,
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(28),
-            border: Border.all(color: const Color(0xFFE5E8EB)), // ★ 회색 보더로 복구
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.03),
-                blurRadius: 10,
-                offset: const Offset(0, 4),
-              ),
-            ],
-          ),
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                flex: 2,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    const Text(
-                      "오늘의 일정",
-                      style: TextStyle(
-                        fontSize: 15,
-                        color: Color(0xFF3182F6), // 토스 블루
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
-                    const SizedBox(height: 4),
-                    Text(
-                      dateText,
-                      style: const TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.bold,
-                        color: Color(0xFF191F28),
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    eventContent,
-                  ],
+        return GestureDetector(
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(builder: (context) => const CalendarScreen()),
+            );
+          },
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(24),
+              border: Border.all(color: const Color(0xFFE5E8EB)),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 10,
+                  offset: const Offset(0, 4),
                 ),
-              ),
-              const SizedBox(width: 10),
-
-              // 오른쪽 미니 달력 (제스처 무시하여 드래그 가능하게 함)
-              Expanded(
-                flex: 3,
-                child: IgnorePointer(
-                  child: TableCalendar(
-                    firstDay: DateTime.utc(2020, 1, 1),
-                    lastDay: DateTime.utc(2030, 12, 31),
-                    focusedDay: now,
-                    calendarFormat: CalendarFormat.month,
-                    headerVisible: false,
-                    daysOfWeekHeight: 20,
-                    rowHeight: 40,
-
-                  eventLoader: (day) {
-                    if (!snapshot.hasData) return [];
-                    final events = snapshot.data!;
-                    return events.where((e) {
-                      DateTime checkDay = DateTime(
-                        day.year,
-                        day.month,
-                        day.day,
-                      );
-                      DateTime start = DateTime(
-                        e.startDate.year,
-                        e.startDate.month,
-                        e.startDate.day,
-                      );
-                      DateTime end = DateTime(
-                        e.endDate.year,
-                        e.endDate.month,
-                        e.endDate.day,
-                      );
-
-                      return (checkDay.isAfter(start) ||
-                              checkDay.isAtSameMomentAs(start)) &&
-                          (checkDay.isBefore(end) ||
-                              checkDay.isAtSameMomentAs(end));
-                    }).toList();
-                  },
-
-                  calendarStyle: CalendarStyle(
-                    todayDecoration: BoxDecoration(
-                      color: const Color(0xFF3182F6), // 오늘 날짜: 브랜드 블루
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xFFE5E8EB),
-                        width: 1.5,
-                      ),
-                    ),
-                    todayTextStyle: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.white, // 파란 배경이므로 흰색 텍스트
-                      fontWeight: FontWeight.bold,
-                    ),
-                    // 홈 화면은 날짜 선택 기능이 없으므로 selectedDecoration은 기본값 유지 혹은 숨김
-                    selectedDecoration: const BoxDecoration(
-                      color: Colors.transparent,
-                      shape: BoxShape.circle,
-                    ),
-                    defaultTextStyle: const TextStyle(fontSize: 13),
-                    weekendTextStyle: const TextStyle(
-                      fontSize: 13,
-                      color: Colors.red,
-                    ),
-                    outsideDaysVisible: false,
-                    cellMargin: const EdgeInsets.all(2.0),
-                  ),
-
-                  // ★ 핵심: 미니 달력에도 카테고리 색상 적용
-                  calendarBuilders: CalendarBuilders(
-                    // 요일 헤더 커스텀 (토: 파랑, 일: 빨강, 평일: 한글+회색)
-                    dowBuilder: (context, day) {
-                      final text = const [
-                        '월',
-                        '화',
-                        '수',
-                        '목',
-                        '금',
-                        '토',
-                        '일',
-                      ][day.weekday - 1];
-                      Color color;
-                      if (day.weekday == DateTime.saturday) {
-                        color = const Color(0xFF3182F6);
-                      } else if (day.weekday == DateTime.sunday) {
-                        color = Colors.red;
-                      } else {
-                        color = Colors.grey; // 미니 달력 평일: 그레이 (기존 스타일 유지)
-                      }
-                      return Center(
-                        child: Text(
-                          text,
-                          style: TextStyle(fontSize: 11, color: color),
+              ],
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  flex: 2,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const Text(
+                        "오늘의 일정",
+                        style: TextStyle(
+                          fontSize: 15,
+                          color: Color(0xFF3182F6), // 토스 블루
+                          fontWeight: FontWeight.bold,
                         ),
-                      );
-                    },
-                    // 주말 및 평일 날짜 커스텀 (weekendBuilder가 없을 수 있으므로 defaultBuilder 사용)
-                    defaultBuilder: (context, day, focusedDay) {
-                      if (day.weekday == DateTime.saturday) {
-                        return Center(
-                          child: Text(
-                            '${day.day}',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Color(0xFF3182F6),
-                            ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        dateText,
+                        style: const TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.bold,
+                          color: Color(0xFF191F28),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+                      eventContent,
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 8),
+
+                // 오른쪽 미니 달력
+                Expanded(
+                  flex: 3,
+                  child: IgnorePointer(
+                    child: TableCalendar(
+                      firstDay: DateTime.utc(2020, 1, 1),
+                      lastDay: DateTime.utc(2030, 12, 31),
+                      focusedDay: now,
+                      calendarFormat: CalendarFormat.month,
+                      headerVisible: false,
+                      daysOfWeekHeight: 18,
+                      rowHeight: 36,
+
+                      eventLoader: (day) {
+                        if (!snapshot.hasData) return [];
+                        final events = snapshot.data!;
+                        return events.where((e) {
+                          DateTime checkDay = DateTime(
+                            day.year,
+                            day.month,
+                            day.day,
+                          );
+                          DateTime start = DateTime(
+                            e.startDate.year,
+                            e.startDate.month,
+                            e.startDate.day,
+                          );
+                          DateTime end = DateTime(
+                            e.endDate.year,
+                            e.endDate.month,
+                            e.endDate.day,
+                          );
+
+                          return (checkDay.isAfter(start) ||
+                                  checkDay.isAtSameMomentAs(start)) &&
+                              (checkDay.isBefore(end) ||
+                                  checkDay.isAtSameMomentAs(end));
+                        }).toList();
+                      },
+
+                      calendarStyle: CalendarStyle(
+                        todayDecoration: BoxDecoration(
+                          color: const Color(0xFF3182F6), // 오늘 날짜: 브랜드 블루
+                          shape: BoxShape.circle,
+                          border: Border.all(
+                            color: const Color(0xFFE5E8EB),
+                            width: 1.5,
                           ),
-                        );
-                      } else if (day.weekday == DateTime.sunday) {
-                        return Center(
-                          child: Text(
-                            '${day.day}',
-                            style: const TextStyle(
-                              fontSize: 13,
-                              color: Colors.red,
-                            ),
-                          ),
-                        );
-                      }
-                      return null; // 평일은 기본 스타일 사용
-                    },
-                    markerBuilder: (context, date, events) {
-                      if (events.isEmpty) return null;
-                      return Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: events.take(3).map((e) {
-                          // e는 Object 타입이므로 Event로 형변환
-                          final event = e as Event;
-                          return Container(
-                            width: 4, // 미니 달력이라 조금 작게(4px)
-                            height: 4,
-                            margin: const EdgeInsets.symmetric(horizontal: 1),
-                            decoration: BoxDecoration(
-                              color: event.color, // ★ 색상 적용
-                              shape: BoxShape.circle,
+                        ),
+                        todayTextStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.white, // 파란 배경이므로 흰색 텍스트
+                          fontWeight: FontWeight.bold,
+                        ),
+                        // 홈 화면은 날짜 선택 기능이 없으므로 selectedDecoration은 기본값 유지 혹은 숨김
+                        selectedDecoration: const BoxDecoration(
+                          color: Colors.transparent,
+                          shape: BoxShape.circle,
+                        ),
+                        defaultTextStyle: const TextStyle(fontSize: 13),
+                        weekendTextStyle: const TextStyle(
+                          fontSize: 13,
+                          color: Colors.red,
+                        ),
+                        outsideDaysVisible: false,
+                        cellMargin: const EdgeInsets.all(2.0),
+                      ),
+
+                      // ★ 핵심: 미니 달력에도 카테고리 색상 적용
+                      calendarBuilders: CalendarBuilders(
+                        // 요일 헤더 커스텀 (토: 파랑, 일: 빨강, 평일: 한글+회색)
+                        dowBuilder: (context, day) {
+                          final text = const [
+                            '월',
+                            '화',
+                            '수',
+                            '목',
+                            '금',
+                            '토',
+                            '일',
+                          ][day.weekday - 1];
+                          Color color;
+                          if (day.weekday == DateTime.saturday) {
+                            color = const Color(0xFF3182F6);
+                          } else if (day.weekday == DateTime.sunday) {
+                            color = Colors.red;
+                          } else {
+                            color = Colors.grey; // 미니 달력 평일: 그레이 (기존 스타일 유지)
+                          }
+                          return Center(
+                            child: Text(
+                              text,
+                              style: TextStyle(fontSize: 11, color: color),
                             ),
                           );
-                        }).toList(),
-                      );
-                    },
-                  ),
+                        },
+                        // 주말 및 평일 날짜 커스텀 (weekendBuilder가 없을 수 있으므로 defaultBuilder 사용)
+                        defaultBuilder: (context, day, focusedDay) {
+                          if (day.weekday == DateTime.saturday) {
+                            return Center(
+                              child: Text(
+                                '${day.day}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Color(0xFF3182F6),
+                                ),
+                              ),
+                            );
+                          } else if (day.weekday == DateTime.sunday) {
+                            return Center(
+                              child: Text(
+                                '${day.day}',
+                                style: const TextStyle(
+                                  fontSize: 13,
+                                  color: Colors.red,
+                                ),
+                              ),
+                            );
+                          }
+                          return null; // 평일은 기본 스타일 사용
+                        },
+                        markerBuilder: (context, date, events) {
+                          if (events.isEmpty) return null;
+                          return Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: events.take(3).map((e) {
+                              // e는 Object 타입이므로 Event로 형변환
+                              final event = e as Event;
+                              return Container(
+                                width: 4, // 미니 달력이라 조금 작게(4px)
+                                height: 4,
+                                margin: const EdgeInsets.symmetric(
+                                  horizontal: 1,
+                                ),
+                                decoration: BoxDecoration(
+                                  color: event.color, // ★ 색상 적용
+                                  shape: BoxShape.circle,
+                                ),
+                              );
+                            }).toList(),
+                          );
+                        },
+                      ),
 
-                  daysOfWeekStyle: const DaysOfWeekStyle(
-                    weekendStyle: TextStyle(fontSize: 11, color: Colors.grey),
-                    weekdayStyle: TextStyle(fontSize: 11, color: Colors.grey),
-                  ),
+                      daysOfWeekStyle: const DaysOfWeekStyle(
+                        weekendStyle: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey,
+                        ),
+                        weekdayStyle: TextStyle(
+                          fontSize: 11,
+                          color: Colors.grey,
+                        ),
+                      ),
+                    ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },

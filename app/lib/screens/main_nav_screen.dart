@@ -3,6 +3,7 @@ import 'home_screen.dart';
 import 'calendar_screen.dart';
 import 'scrap_screen.dart';
 import 'group/group_root_screen.dart';
+import '../features/map_3d/screens/map_screen.dart'; // NEW
 import '../widgets/animated_bottom_nav_item.dart';
 import '../widgets/animated_bottom_nav_item.dart';
 import '../widgets/group_bottom_nav_bar.dart';
@@ -15,9 +16,10 @@ class MainNavScreen extends StatefulWidget {
   State<MainNavScreen> createState() => _MainNavScreenState();
 }
 
-class _MainNavScreenState extends State<MainNavScreen> with SingleTickerProviderStateMixin {
+class _MainNavScreenState extends State<MainNavScreen>
+    with SingleTickerProviderStateMixin {
   int _selectedIndex = 0;
-  
+
   // 모집 탭 관리를 위한 변수들
   late PageController _groupPageController;
   int _groupTabIndex = 2; // 모집 탭 내부 인덱스 (초기값: 모집 목록)
@@ -31,7 +33,7 @@ class _MainNavScreenState extends State<MainNavScreen> with SingleTickerProvider
   void initState() {
     super.initState();
     _groupPageController = PageController(initialPage: 2);
-    
+
     _navAnimationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 300), // 페이드 효과에 맞춰 시간 단축
@@ -39,46 +41,38 @@ class _MainNavScreenState extends State<MainNavScreen> with SingleTickerProvider
     );
 
     // 페이드 인 (0 -> 1)
-    _fadeInAnimation = Tween<double>(
-      begin: 0.0,
-      end: 1.0,
-    ).animate(CurvedAnimation(
-      parent: _navAnimationController,
-      curve: Curves.easeIn,
-    ));
+    _fadeInAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _navAnimationController, curve: Curves.easeIn),
+    );
 
     // 페이드 아웃 (1 -> 0)
-    _fadeOutAnimation = Tween<double>(
-      begin: 1.0,
-      end: 0.0,
-    ).animate(CurvedAnimation(
-      parent: _navAnimationController,
-      curve: Curves.easeOut,
-    ));
+    _fadeOutAnimation = Tween<double>(begin: 1.0, end: 0.0).animate(
+      CurvedAnimation(parent: _navAnimationController, curve: Curves.easeOut),
+    );
 
     // 애니메이션 종료 시 화면 갱신 (위젯 트리에서 제거하기 위해)
     _navAnimationController.addStatusListener((status) {
-      if (status == AnimationStatus.completed || status == AnimationStatus.dismissed) {
+      if (status == AnimationStatus.completed ||
+          status == AnimationStatus.dismissed) {
         setState(() {});
       }
     });
   }
-  
+
   // ... (dispose, onItemTapped omitted for brevity) ...
-  // Please ensure the surrounding code matches carefully if you use this tool, 
+  // Please ensure the surrounding code matches carefully if you use this tool,
   // but since I am engaging in a multi-hunk edit effectively by replacing the whole init + vars,
-  // I should be careful. 
+  // I should be careful.
   // Wait, I can only do one block.
-  // I will split this into two calls or use MultiReplace if possible? 
+  // I will split this into two calls or use MultiReplace if possible?
   // Standard replace is for single contiguous block.
   // The vars are at top, initState in middle, build at bottom.
   // This is non-contiguous. I must use multi_replace_file_content.
   // BUT I can't use multi_replace for "declarations + initstate + build".
   // Actually I can.
-  
+
   // Let's use multi_replace_file_content.
-  
-  
+
   // ... (dispose, onItemTapped omitted for brevity) ...
 
   @override
@@ -149,7 +143,7 @@ class _MainNavScreenState extends State<MainNavScreen> with SingleTickerProvider
       ),
 
       const CalendarScreen(),
-      const Scaffold(body: Center(child: Text("3D맵 화면 준비중"))),
+      const MapScreen(), // Updated
     ];
 
     return Scaffold(
@@ -165,8 +159,8 @@ class _MainNavScreenState extends State<MainNavScreen> with SingleTickerProvider
           if (_selectedIndex != 2 || _navAnimationController.isAnimating)
             FadeTransition(
               key: const ValueKey('FadeMain'),
-              opacity: _selectedIndex != 2 
-                  ? _fadeInAnimation 
+              opacity: _selectedIndex != 2
+                  ? _fadeInAnimation
                   : _fadeOutAnimation,
               child: MainBottomNavBar(
                 key: const ValueKey('MainNavBar'),
@@ -197,4 +191,3 @@ class _MainNavScreenState extends State<MainNavScreen> with SingleTickerProvider
     );
   }
 }
-
