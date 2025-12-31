@@ -1,0 +1,67 @@
+외벽
+
+[
+    Vector((-200.0, -200.0, 0.0)), Vector((-300.0, -100.0, 0.0)),
+    Vector((-200.0, 0.0, 0.0)), Vector((-100.0, 100.0, 0.0)),
+    Vector((-50.0, 150.0, 0.0)), Vector((250.0, 150.0, 0.0)),
+    Vector((250.0, 0.0, 0.0)), Vector((0.0, 0.0, 0.0)),
+]
+
+내벽
+
+[
+        [Vector((-240.0, -160.0, 0)), Vector((-140.0, -60.0, 0))],
+        [Vector((-45.0, 35.0, 0)), Vector((-30.0, 50.0, 0))],
+        [Vector((-45.0, 35.0, 0)), Vector((-30.0, 20.0, 0))],
+        [Vector((-15.0, 20.0, 0)), Vector((-30.0, 20.0, 0))],
+        [Vector((-15.0, 20.0, 0)), Vector((-15.0, -5.0, 0))],
+        [Vector((-10.0, -10.0, 0)), Vector((-15.0, -5.0, 0))],
+        [Vector((-55.0, -55.0, 0)), Vector((-80.0, -30.0, 0))],
+        [Vector((-40.0, 10.0, 0)), Vector((-125.0, -75.0, 0))],
+        [Vector((-40.0, 10.0, 0)), Vector((-15.0, 10.0, 0))],
+        [Vector((-40.0, 10.0, 0)), Vector((-55.0, 25.0, 0))],
+        [Vector((-120.0, -40.0, 0)), Vector((-55.0, 25.0, 0))],
+        [Vector((-105.0, -55.0, 0)), Vector((-120.0, -40.0, 0))],
+        [Vector((-70.0, -20.0, 0)), Vector((-85.0, -5.0, 0))],        
+        [Vector((250.0, 50.0, 0)), Vector((-30.0, 50.0, 0))],
+        [Vector((-260.0, -140.0, 0)), Vector((-40, 80.0, 0))],
+        [Vector((250.0, 80.0, 0)), Vector((-40.0, 80.0, 0))],        	[Vector((-140.0, -60.0, 0)), Vector((-100.0, -100.0, 0))],
+        [Vector((-160.0, -80.0, 0)), Vector((-120.0, -120.0, 0))],
+        [Vector((170.0, 50.0, 0)), Vector((170.0, 0.0, 0))],
+        [Vector((130.0, 50.0, 0)), Vector((130.0, 0.0, 0))],
+        [Vector((100.0, 50.0, 0)), Vector((100.0, 0.0, 0))],
+        [Vector((70.0, 50.0, 0)), Vector((70.0, 0.0, 0))],
+        [Vector((20.0, 50.0, 0)), Vector((20.0, 0.0, 0))],
+        [Vector((-30.0, 80.0, 0)), Vector((-30.0, 150.0, 0))],
+        [Vector((110.0, 80.0, 0)), Vector((110.0, 150.0, 0))],
+        [Vector((180.0, 80.0, 0)), Vector((180.0, 150.0, 0))],
+        [Vector((-160.0, -40.0, 0)), Vector((-200.0, 0.0, 0))],
+        [Vector((-180.0, -60.0, 0)), Vector((-220.0, -20.0, 0))],
+        [Vector((-200.0, -80.0, 0)), Vector((-240.0, -40.0, 0))],
+        [Vector((-220.0, -100.0, 0)), Vector((-260.0, -60.0, 0))],
+        [Vector((-240.0, -120.0, 0)), Vector((-280.0, -80.0, 0))],
+        [Vector((-200.0, -120.0, 0)), Vector((-160.0, -160.0, 0))],
+]
+
+방
+
+add_text_label("계단", (-130, -90, FLOOR_HEIGHT),10)
+add_text_label("화장실(남)", (-45, -20, FLOOR_HEIGHT),7)
+add_text_label("화장실(여)", (-90, -65, FLOOR_HEIGHT),7)
+add_text_label("장애인\n화장실(남)", (-65, 0, FLOOR_HEIGHT),5)
+add_text_label("장애인\n화장실(여)", (-95, -30, FLOOR_HEIGHT),5)
+add_text_label("EV", (45, 25, FLOOR_HEIGHT),20)
+add_text_label("화물\nEV", (85, 25, FLOOR_HEIGHT),10)
+add_text_label("계단", (115, 25, FLOOR_HEIGHT),10)
+add_text_label("501", (40, 115, FLOOR_HEIGHT))
+add_text_label("502", (145, 115, FLOOR_HEIGHT))
+add_text_label("503", (215, 115, FLOOR_HEIGHT))
+add_text_label("504", (210, 25, FLOOR_HEIGHT))
+add_text_label("학생회\n사무실", (150, 25, FLOOR_HEIGHT),10)
+add_text_label("506", (-190, -30, FLOOR_HEIGHT),17)
+add_text_label("507", (-210, -50, FLOOR_HEIGHT),17)
+add_text_label("508", (-230, -70, FLOOR_HEIGHT),17)
+add_text_label("509", (-250, -90, FLOOR_HEIGHT),17)
+add_text_label("510", (-270, -110, FLOOR_HEIGHT),17)
+add_text_label("512", (-160, -120, FLOOR_HEIGHT))
+add_text_label("511", (-200, -160, FLOOR_HEIGHT))

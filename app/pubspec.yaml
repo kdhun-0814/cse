@@ -76,6 +76,7 @@ flutter:
     - assets/images/onboarding_map.jpg
     - assets/images/onboarding_calender.jpg
     - assets/3d/
+    - assets/json/
    
   # To add assets to your application, add an assets section, like this:
   # assets:

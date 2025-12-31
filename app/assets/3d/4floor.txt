@@ -1,0 +1,79 @@
+외벽
+
+[
+    Vector((-200.0, -200.0, 0.0)), Vector((-300.0, -100.0, 0.0)),
+    Vector((-200.0, 0.0, 0.0)), Vector((-250.0, 50.0, 0.0)), 
+    Vector((-100.0, 200.0, 0.0)), Vector((300.0, 200.0, 0.0)),
+    Vector((300.0, 0.0, 0.0)), Vector((0.0, 0.0, 0.0)),
+]
+
+내벽
+
+[
+        [Vector((-240.0, -160.0, 0)), Vector((-140.0, -60.0, 0))],
+        [Vector((-45.0, 35.0, 0)), Vector((-30.0, 50.0, 0))],
+        [Vector((-45.0, 35.0, 0)), Vector((-30.0, 20.0, 0))],
+        [Vector((-15.0, 20.0, 0)), Vector((-30.0, 20.0, 0))],
+        [Vector((-15.0, 20.0, 0)), Vector((-15.0, -5.0, 0))],
+        [Vector((-10.0, -10.0, 0)), Vector((-15.0, -5.0, 0))],
+        [Vector((-55.0, -55.0, 0)), Vector((-80.0, -30.0, 0))],
+        [Vector((-40.0, 10.0, 0)), Vector((-125.0, -75.0, 0))],
+        [Vector((-40.0, 10.0, 0)), Vector((-15.0, 10.0, 0))],
+        [Vector((-40.0, 10.0, 0)), Vector((-55.0, 25.0, 0))],
+        [Vector((-120.0, -40.0, 0)), Vector((-55.0, 25.0, 0))],
+        [Vector((-105.0, -55.0, 0)), Vector((-120.0, -40.0, 0))],
+        [Vector((-70.0, -20.0, 0)), Vector((-85.0, -5.0, 0))],
+        [Vector((300.0, 50.0, 0)), Vector((-30.0, 50.0, 0))],
+        [Vector((-260.0, -140.0, 0)), Vector((-160.0, -40.0, 0))],
+        [Vector((-140.0, -20.0, 0)), Vector((-50.0, 70.0, 0))],
+        [Vector((300.0, 70.0, 0)), Vector((160.0, 70.0, 0))],
+        [Vector((140.0, 70.0, 0)), Vector((-30.0, 70.0, 0))],
+        [Vector((-160.0, -40.0, 0)), Vector((-200.0, 0.0, 0))],
+        [Vector((-140.0, -20.0, 0)), Vector((-180.0, 20.0, 0))],
+        [Vector((-80.0, 120.0, 0)), Vector((-180.0, 20.0, 0))],
+        [Vector((-80.0, 120.0, 0)), Vector((-50.0, 120.0, 0))],
+        [Vector((-50.0, 70.0, 0)), Vector((-50.0, 120.0, 0))],
+        [Vector((-30.0, 70.0, 0)), Vector((-30.0, 120.0, 0))],
+        [Vector((140, 120.0, 0)), Vector((-30.0, 120.0, 0))],
+        [Vector((140, 120.0, 0)), Vector((140.0, 70.0, 0))],
+        [Vector((160.0, 120.0, 0)), Vector((160.0, 70.0, 0))],
+        [Vector((160.0, 120.0, 0)), Vector((300.0, 120.0, 0))],
+        [Vector((-80.0, 140.0, 0)), Vector((-210.0, 10.0, 0))],
+        [Vector((-80.0, 140.0, 0)), Vector((250.0, 140.0, 0))],
+        [Vector((250.0, 200.0, 0)), Vector((250.0, 140.0, 0))],
+        [Vector((260.0, 170.0, 0)), Vector((260.0, 120.0, 0))],
+        [Vector((260.0, 145.0, 0)), Vector((300.0, 145.0, 0))],
+        [Vector((-50.0, 200.0, 0)), Vector((-50.0, 140.0, 0))],
+        [Vector((100.0, 200.0, 0)), Vector((100.0, 140.0, 0))],
+        [Vector((-140.0, 160.0, 0)), Vector((-100.0, 120.0, 0))],
+        [Vector((-140.0, -60.0, 0)), Vector((-100.0, -100.0, 0))],
+        [Vector((-160.0, -80.0, 0)), Vector((-120.0, -120.0, 0))],
+        [Vector((170.0, 50.0, 0)), Vector((170.0, 0.0, 0))],
+        [Vector((130.0, 50.0, 0)), Vector((130.0, 0.0, 0))],
+        [Vector((100.0, 50.0, 0)), Vector((100.0, 0.0, 0))],
+        [Vector((70.0, 50.0, 0)), Vector((70.0, 0.0, 0))],
+        [Vector((20.0, 50.0, 0)), Vector((20.0, 0.0, 0))],
+        [Vector((250.0, 170.0, 0)), Vector((300.0, 170.0, 0))],
+]
+
+방
+
+add_text_label("401", (60, 95, FLOOR_HEIGHT))
+add_text_label("402", (225, 95, FLOOR_HEIGHT))
+add_text_label("403", (235, 25, FLOOR_HEIGHT))
+add_text_label("405", (175, 170, FLOOR_HEIGHT))
+add_text_label("406", (25, 170, FLOOR_HEIGHT))
+add_text_label("408", (-170, 90, FLOOR_HEIGHT))
+add_text_label("409", (-230, -70, FLOOR_HEIGHT))
+add_text_label("410", (-180, -140, FLOOR_HEIGHT))
+add_text_label("계단", (-130, -90, FLOOR_HEIGHT),10)
+add_text_label("화장실(남)", (-45, -20, FLOOR_HEIGHT),7)
+add_text_label("화장실(여)", (-90, -65, FLOOR_HEIGHT),7)
+add_text_label("장애인\n화장실(남)", (-65, 0, FLOOR_HEIGHT),5)
+add_text_label("장애인\n화장실(여)", (-95, -30, FLOOR_HEIGHT),5)
+add_text_label("EV", (45, 25, FLOOR_HEIGHT),20)
+add_text_label("화물\nEV", (85, 25, FLOOR_HEIGHT),10)
+add_text_label("계단", (115, 25, FLOOR_HEIGHT),10)
+add_text_label("계단", (275, 185, FLOOR_HEIGHT),10)
+add_text_label("화장실(남)", (280, 155, FLOOR_HEIGHT),7)
+add_text_label("화장실(여)", (280, 135, FLOOR_HEIGHT),7)
