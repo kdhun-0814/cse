@@ -3,11 +3,9 @@ import 'home_screen.dart';
 import 'calendar_screen.dart';
 import 'scrap_screen.dart';
 import 'group/group_root_screen.dart';
-import '../features/map_3d/screens/map_screen.dart'; // NEW
-import '../widgets/animated_bottom_nav_item.dart';
-import '../widgets/animated_bottom_nav_item.dart';
 import '../widgets/group_bottom_nav_bar.dart';
-import '../widgets/main_bottom_nav_bar.dart'; // Import MainBottomNavBar
+import '../widgets/main_bottom_nav_bar.dart';
+import '../features/indoor_map/screens/indoor_map_screen.dart';
 
 class MainNavScreen extends StatefulWidget {
   const MainNavScreen({super.key});
@@ -143,7 +141,7 @@ class _MainNavScreenState extends State<MainNavScreen>
       ),
 
       const CalendarScreen(),
-      const MapScreen(), // Updated
+      const IndoorMapScreen(), // 3D 실내 지도
     ];
 
     return Scaffold(

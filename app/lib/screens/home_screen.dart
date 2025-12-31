@@ -225,18 +225,13 @@ class _HomeScreenState extends State<HomeScreen>
                 bottom: BorderSide(color: Color(0xFFE5E8EB), width: 1),
               )
             : null,
-        leading: IconButton(
-          icon: const Icon(
-            Icons.dashboard_customize_rounded,
-            color: Color(0xFF4E5968),
+        leading: Builder(
+          builder: (context) => IconButton(
+            icon: const Icon(Icons.menu_rounded, color: Color(0xFF4E5968)),
+            onPressed: () {
+              Scaffold.of(context).openDrawer();
+            },
           ),
-          onPressed: () {
-            Navigator.of(context).push(
-              MaterialPageRoute(
-                builder: (context) => const WidgetManagementScreen(),
-              ),
-            );
-          },
         ),
         title: const Text(
           '홈',
@@ -255,13 +250,18 @@ class _HomeScreenState extends State<HomeScreen>
             ),
             onPressed: () {},
           ),
-          Builder(
-            builder: (context) => IconButton(
-              icon: const Icon(Icons.menu_rounded, color: Color(0xFF4E5968)),
-              onPressed: () {
-                Scaffold.of(context).openDrawer();
-              },
+          IconButton(
+            icon: const Icon(
+              Icons.dashboard_customize_rounded,
+              color: Color(0xFF4E5968),
             ),
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const WidgetManagementScreen(),
+                ),
+              );
+            },
           ),
           const SizedBox(width: 8),
         ],

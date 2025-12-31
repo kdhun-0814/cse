@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../models/room_search_result.dart';
+import '../services/room_alias_service.dart';
 
 class SearchBarWidget extends StatefulWidget {
   final List<RoomSearchResult> allRooms; // Changed from List<PathNode>
@@ -32,8 +33,8 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
     }
 
     final filtered = widget.allRooms.where((result) {
-      final name = result.node.name?.toLowerCase() ?? '';
-      return name.contains(query.toLowerCase());
+      final name = result.node.name ?? '';
+      return RoomAliasService.matches(name, query);
     }).toList();
 
     setState(() {
@@ -106,13 +107,19 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
               itemCount: _filteredRooms.length,
               itemBuilder: (context, index) {
                 final result = _filteredRooms[index];
+                final name = result.node.name ?? '';
+                final aliases = RoomAliasService.getAliases(name);
+                final aliasText = aliases.isNotEmpty
+                    ? ' (${aliases.join(", ")})'
+                    : '';
+
                 return ListTile(
                   leading: const Icon(
                     Icons.location_on_outlined,
                     size: 20,
                     color: Colors.grey,
                   ),
-                  title: Text(result.node.name ?? 'Unknown'),
+                  title: Text('$name$aliasText'),
                   subtitle: Text('${result.floorName}'),
                   onTap: () => _selectRoom(result),
                 );

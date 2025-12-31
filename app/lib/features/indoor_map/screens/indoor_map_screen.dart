@@ -172,12 +172,21 @@ class _IndoorMapScreenState extends State<IndoorMapScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFF5F5F5),
+      backgroundColor: const Color(0xFFF2F4F6),
       appBar: AppBar(
-        title: Text('${_currentConfig.floorName} 실내 지도'),
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        scrolledUnderElevation: 0,
+        backgroundColor: const Color(0xFFF2F4F6),
+        automaticallyImplyLeading: false, // 뒤로가기 버튼 자동 생성 방지
+        title: Text(
+          '${_currentConfig.floorName} 실내 지도',
+          style: const TextStyle(
+            color: Color(0xFF191F28),
+            fontWeight: FontWeight.bold,
+            fontSize: 26,
+          ),
+        ),
+        centerTitle: true,
       ),
       body: _isLoading
           ? const Center(child: CircularProgressIndicator())
@@ -235,25 +244,28 @@ class _IndoorMapScreenState extends State<IndoorMapScreen> {
               : '',
         ),
 
-        // Layer 2: Search Bar (Global Search)
+        // Layer 2: Search Bar (Global Search - Centered)
         Positioned(
           top: 16,
           left: 16,
-          right: 80,
+          right: 16, // 양쪽 여백을 동일하게 주어 중앙 정렬 효과
           child: SearchBarWidget(
-            allRooms: _allSearchableRooms, // 전체 층 리스트 전달
+            allRooms: _allSearchableRooms,
             onRoomSelected: _onRoomSelected,
             onClear: _onClearSearch,
           ),
         ),
 
         // Layer 3: Floor Selector
-        Positioned(
-          right: 16,
-          top: 16,
-          child: FloorSelectorWidget(
-            currentFloor: _currentConfig.floor,
-            onFloorChanged: _onFloorTap,
+        // Layer 3: Floor Selector
+        Align(
+          alignment: Alignment.centerRight,
+          child: Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: FloorSelectorWidget(
+              currentFloor: _currentConfig.floor,
+              onFloorChanged: _onFloorTap,
+            ),
           ),
         ),
 
