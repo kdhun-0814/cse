@@ -30,7 +30,7 @@ class _GroupRootScreenState extends State<GroupRootScreen> {
     "", // 0: 홈으로 이동 (이 화면에선 0번 페이지가 홈이 되지만, 실제로는 Navigator pop 또는 Main Tab 전환)
     "모집 만들기", // 1
     "모집 목록", // 2
-    "모집 관리", // 3
+    "내 모집 관리", // 3
     "찜한 목록", // 4
   ];
 

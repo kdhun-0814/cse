@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:table_calendar/table_calendar.dart';
-import 'package:flutter_slidable/flutter_slidable.dart'; // ★ 패키지 import
+// import 'package:flutter_slidable/flutter_slidable.dart'; // 삭제
 import '../models/event.dart';
 import '../services/firestore_service.dart';
-import 'admin/event_add_screen.dart';
-import 'admin/event_edit_screen.dart'; // ★ 수정 화면 import
+// import '../utils/toast_utils.dart'; // 삭제 (confirmDelete 이동으로 불필요할 수 있음, 하지만 다른데 쓸 수 있으니 확인)
+import '../widgets/common/custom_loading_indicator.dart';
+// import 'admin/event_add_screen.dart'; // 삭제 (관리 페이지로 이동)
+// import 'admin/event_edit_screen.dart'; // 삭제 (관리 페이지로 이동)
+import 'admin/event_management_screen.dart'; // ★ 관리 페이지 import
 
 class CalendarScreen extends StatefulWidget {
   const CalendarScreen({super.key});
@@ -78,37 +81,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
     }
   }
 
-  // 삭제 확인 다이얼로그
-  void _confirmDelete(Event event) {
-    showDialog(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("일정 삭제"),
-        content: const Text("정말로 이 일정을 삭제하시겠습니까?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("취소"),
-          ),
-          TextButton(
-            onPressed: () async {
-              await _firestoreService.deleteEvent(event.id);
-              if (mounted) {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text("삭제되었습니다.")));
-              }
-            },
-            child: const Text(
-              "삭제",
-              style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // 삭제 확인 다이얼로그 제거됨 (EventManagementScreen으로 이동)
 
   @override
   Widget build(BuildContext context) {
@@ -133,19 +106,19 @@ class _CalendarScreenState extends State<CalendarScreen> {
             : null,
         backgroundColor: const Color(0xFFF2F4F6),
         actions: [
-          // 상단 + 버튼 (관리자일 때만 보임)
+          // 상단 설정 버튼 (관리자일 때만 보임)
           if (_isAdmin)
             IconButton(
               icon: const Icon(
-                Icons.add_rounded,
+                Icons.settings_outlined, // 톱니바퀴 아이콘
                 color: Color(0xFF3182F6),
-                size: 32,
+                size: 28,
               ),
               onPressed: () {
                 Navigator.push(
                   context,
                   MaterialPageRoute(
-                    builder: (context) => const EventAddScreen(),
+                    builder: (context) => const EventManagementScreen(),
                   ),
                 );
               },
@@ -157,7 +130,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
         stream: _eventsStream, // ★ 캐싱된 스트림 사용
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CustomLoadingIndicator());
           }
           if (snapshot.hasError) {
             return const Center(child: Text("일정을 불러오지 못했습니다."));
@@ -403,110 +376,9 @@ class _CalendarScreenState extends State<CalendarScreen> {
                             ),
                           );
 
-                          // ★ 관리자가 아니면 그냥 아이템 반환
-                          if (!_isAdmin) return itemContent;
-
-                          // ★ 관리자면 Slidable로 감싸서 반환
-                          return Padding(
-                            padding: const EdgeInsets.only(
-                              bottom: 12,
-                            ), // Slidable 간격 조정
-                            child: Slidable(
-                              key: ValueKey(event.id),
-                              endActionPane: ActionPane(
-                                motion: const ScrollMotion(),
-                                extentRatio: 0.5, // 버튼들이 차지할 비율
-                                children: [
-                                  CustomSlidableAction(
-                                    onPressed: (context) {
-                                      Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                          builder: (context) =>
-                                              EventEditScreen(event: event),
-                                        ),
-                                      );
-                                    },
-                                    backgroundColor: const Color(
-                                      0xFF90CAF9,
-                                    ), // 학사 색상 (파스텔 블루)
-                                    foregroundColor: Colors.white,
-                                    borderRadius: const BorderRadius.horizontal(
-                                      left: Radius.circular(16),
-                                    ),
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        border: Border.all(
-                                          color: const Color(0xFFE5E8EB),
-                                        ),
-                                        borderRadius:
-                                            const BorderRadius.horizontal(
-                                              left: Radius.circular(16),
-                                            ),
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: const Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(Icons.edit_rounded, size: 28),
-                                          SizedBox(height: 4),
-                                          Text(
-                                            "수정 (관리자)",
-                                            style: TextStyle(fontSize: 10),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                  CustomSlidableAction(
-                                    onPressed: (context) {
-                                      _confirmDelete(event);
-                                    },
-                                    backgroundColor: const Color(
-                                      0xFFEF9A9A,
-                                    ), // 긴급 색상 (파스텔 레드)
-                                    foregroundColor: Colors.white,
-                                    borderRadius: const BorderRadius.horizontal(
-                                      right: Radius.circular(16),
-                                    ),
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                        border: Border.all(
-                                          color: const Color(0xFFE5E8EB),
-                                        ),
-                                        borderRadius:
-                                            const BorderRadius.horizontal(
-                                              right: Radius.circular(16),
-                                            ),
-                                      ),
-                                      alignment: Alignment.center,
-                                      child: const Column(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(
-                                            Icons.delete_outline_rounded,
-                                            size: 28,
-                                          ),
-                                          SizedBox(height: 4),
-                                          Text(
-                                            "삭제 (관리자)",
-                                            style: TextStyle(fontSize: 10),
-                                          ),
-                                        ],
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              child: Container(
-                                // Slidable child 안쪽에는 margin을 없애야 자연스러움 (Slidable 밖인 Padding에서 처리)
-                                margin: EdgeInsets.zero,
-                                child: itemContent,
-                              ),
-                            ),
-                          );
+                          // ★ 관리자여도 CalendarScreen에서는 수정/삭제 불가 (EventManagementScreen에서 수행)
+                          // 따라서 항상 기본 itemContent 반환
+                          return itemContent;
                         },
                       ),
               ),

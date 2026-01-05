@@ -2,7 +2,9 @@ import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import '../../widgets/common/custom_loading_indicator.dart';
 import '../../services/firestore_service.dart';
+import '../../utils/toast_utils.dart';
 
 class WriteNoticeScreen extends StatefulWidget {
   const WriteNoticeScreen({super.key});
@@ -76,16 +78,12 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("공지사항이 등록되었습니다.")));
+        ToastUtils.show(context, "공지사항이 등록되었습니다.");
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("등록 실패: $e")));
+        ToastUtils.show(context, "등록 실패: $e", isError: true);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -114,7 +112,11 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
                 ? const SizedBox(
                     width: 20,
                     height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
+                    child: CustomLoadingIndicator(
+                      color: Colors.white,
+                      size: 20,
+                      strokeWidth: 2,
+                    ),
                   )
                 : const Text(
                     "등록",

@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/notice.dart';
 import '../../screens/notice_detail_screen.dart';
+import '../common/custom_loading_indicator.dart';
+import '../common/bounceable.dart'; // Toss-style Interaction
 
 class HotNoticeWidget extends StatelessWidget {
   final bool forceShow;
@@ -18,7 +20,7 @@ class HotNoticeWidget extends StatelessWidget {
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData)
-          return const Center(child: CircularProgressIndicator());
+          return const Center(child: CustomLoadingIndicator());
 
         final notices = snapshot.data!.docs
             .map((doc) => Notice.fromFirestore(doc, []))
@@ -117,13 +119,10 @@ class HotNoticeWidget extends StatelessWidget {
                 children: notices.asMap().entries.map((entry) {
                   final index = entry.key;
                   final notice = entry.value;
+                  final isLast = index == notices.length - 1;
                   return Column(
                     children: [
-                      ListTile(
-                        contentPadding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 12,
-                        ),
+                      Bounceable(
                         onTap: () {
                           Navigator.push(
                             context,
@@ -133,44 +132,55 @@ class HotNoticeWidget extends StatelessWidget {
                             ),
                           );
                         },
-                        leading: Container(
-                          width: 28,
-                          height: 28,
-                          decoration: BoxDecoration(
-                            color: index < 3
-                                ? const Color(0xFF3182F6)
-                                : const Color(0xFFF2F4F6),
-                            shape: BoxShape.circle,
+                        borderRadius: isLast
+                            ? const BorderRadius.vertical(
+                                bottom: Radius.circular(24))
+                            : BorderRadius.zero,
+                        child: ListTile(
+                          contentPadding: const EdgeInsets.symmetric(
+                            horizontal: 20,
+                            vertical: 12,
                           ),
-                          child: Center(
-                            child: Text(
-                              "${index + 1}",
-                              style: TextStyle(
-                                color: index < 3
-                                    ? Colors.white
-                                    : const Color(0xFF8B95A1),
-                                fontWeight: FontWeight.bold,
-                                fontSize: 13,
+                          // onTap 제거
+                          leading: Container(
+                            width: 28,
+                            height: 28,
+                            decoration: BoxDecoration(
+                              color: index < 3
+                                  ? const Color(0xFF3182F6)
+                                  : const Color(0xFFF2F4F6),
+                              shape: BoxShape.circle,
+                            ),
+                            child: Center(
+                              child: Text(
+                                "${index + 1}",
+                                style: TextStyle(
+                                  color: index < 3
+                                      ? Colors.white
+                                      : const Color(0xFF8B95A1),
+                                  fontWeight: FontWeight.bold,
+                                  fontSize: 13,
+                                ),
                               ),
                             ),
                           ),
-                        ),
-                        title: Text(
-                          notice.title,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w600,
-                            color: Color(0xFF333D4B),
+                          title: Text(
+                            notice.title,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF333D4B),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
                           ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                        trailing: Text(
-                          "${notice.views}",
-                          style: const TextStyle(
-                            fontSize: 12,
-                            color: Color(0xFFFF5252), // Hot color
-                            fontWeight: FontWeight.bold,
+                          trailing: Text(
+                            "${notice.views}",
+                            style: const TextStyle(
+                              fontSize: 12,
+                              color: Color(0xFFFF5252), // Hot color
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),

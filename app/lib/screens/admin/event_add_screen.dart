@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../services/firestore_service.dart';
+import '../../utils/toast_utils.dart';
+import '../../widgets/common/custom_loading_indicator.dart';
 
 class EventAddScreen extends StatefulWidget {
   const EventAddScreen({super.key});
@@ -20,9 +22,7 @@ class _EventAddScreenState extends State<EventAddScreen> {
 
   Future<void> _saveEvent() async {
     if (_titleController.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("제목을 입력해주세요.")));
+      ToastUtils.show(context, "제목을 입력해주세요.", isError: true);
       return;
     }
 
@@ -37,16 +37,12 @@ class _EventAddScreenState extends State<EventAddScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("일정이 추가되었습니다!")));
+        ToastUtils.show(context, "일정이 추가되었습니다!");
         Navigator.pop(context); // 저장 후 뒤로가기
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("오류가 발생했습니다.")));
+        ToastUtils.show(context, "오류가 발생했습니다.", isError: true);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -150,7 +146,7 @@ class _EventAddScreenState extends State<EventAddScreen> {
                   elevation: 0,
                 ),
                 child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const CustomLoadingIndicator(color: Colors.white)
                     : const Text(
                         "저장하기",
                         style: TextStyle(

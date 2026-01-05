@@ -3,6 +3,9 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'signup_screen.dart';
 import '../auth_gate.dart'; // AuthGate 임포트 추가
 import 'package:google_fonts/google_fonts.dart';
+import '../widgets/common/custom_loading_indicator.dart';
+import '../widgets/common/custom_dialog.dart';
+import '../utils/toast_utils.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -19,17 +22,13 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     // 1. 입력값이 비어있는지 확인
     if (_studentIdCtrl.text.isEmpty || _pwCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("학번과 비밀번호를 모두 입력해주세요.")));
+      ToastUtils.show(context, "학번과 비밀번호를 모두 입력해주세요.", isError: true);
       return;
     }
 
     // 2. 학번 자릿수(10자리) 검사
     if (_studentIdCtrl.text.length != 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("학번은 10자리여야 합니다. 올바르게 입력해주세요.")),
-      );
+      ToastUtils.show(context, "학번은 10자리여야 합니다. 올바르게 입력해주세요.", isError: true);
       return;
     }
 
@@ -53,48 +52,25 @@ class _LoginScreenState extends State<LoginScreen> {
         if (mounted) {
           showDialog(
             context: context,
-            builder: (ctx) => AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: const Text(
-                "이메일 미인증",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              content: const Text(
-                "학교 메일 인증이 완료되지 않았습니다.\n메일함(스팸함 포함)을 확인해주세요.",
-              ),
-              actions: [
-                TextButton(
-                  onPressed: () async {
-                    try {
-                      await userCred.user!.sendEmailVerification();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("인증 메일을 다시 보냈습니다.")),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("잠시 후 다시 시도해주세요.")),
-                      );
-                    }
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text(
-                    "메일 재전송",
-                    style: TextStyle(color: Color(0xFF3182F6)),
-                  ),
-                ),
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text(
-                    "확인",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF3182F6),
-                    ),
-                  ),
-                ),
-              ],
+            builder: (ctx) => CustomDialog(
+              title: "이메일 미인증",
+              contentText: "학교 메일 인증이 완료되지 않았습니다.\n메일함(스팸함 포함)을 확인해주세요.",
+              cancelText: "메일 재전송",
+              onCancel: () async {
+                try {
+                  await userCred.user!.sendEmailVerification();
+                  ToastUtils.show(context, "인증 메일을 다시 보냈습니다.");
+                } catch (e) {
+                  ToastUtils.show(
+                    context,
+                    "잠시 후 다시 시도해주세요.",
+                    isError: true,
+                  );
+                }
+                Navigator.pop(ctx);
+              },
+              confirmText: "확인",
+              onConfirm: () => Navigator.pop(ctx),
             ),
           );
         }
@@ -129,13 +105,9 @@ class _LoginScreenState extends State<LoginScreen> {
         message = "비활성화된 계정입니다. 관리자에게 문의하세요.";
       }
 
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ToastUtils.show(context, message, isError: true);
     } catch (e) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text("오류가 발생했습니다: $e")));
+      ToastUtils.show(context, "오류가 발생했습니다: $e", isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -254,13 +226,9 @@ class _LoginScreenState extends State<LoginScreen> {
                 elevation: 0,
               ),
               child: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
+                  ? const CustomLoadingIndicator(
+                      color: Colors.white,
+                      size: 20,
                     )
                   : const Text(
                       "로그인",

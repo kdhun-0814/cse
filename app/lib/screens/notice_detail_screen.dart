@@ -6,6 +6,9 @@ import '../models/notice.dart';
 
 import 'package:flutter_widget_from_html/flutter_widget_from_html.dart';
 import 'package:url_launcher/url_launcher.dart';
+import '../utils/toast_utils.dart';
+import '../widgets/common/jelly_button.dart';
+import '../widgets/common/custom_dialog.dart';
 
 class NoticeDetailScreen extends StatefulWidget {
   final Notice notice;
@@ -22,6 +25,8 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
   bool _isScrolled = false;
   late Stream<DocumentSnapshot>? _userStream;
   String _userRole = ''; // NEW
+  late bool _isImportant;
+  late bool _isUrgent;
 
   @override
   void initState() {
@@ -34,6 +39,9 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
         });
       }
     });
+
+    _isImportant = widget.notice.isImportant ?? false;
+    _isUrgent = widget.notice.isUrgent ?? false;
 
     // 화면 진입 시 읽음 처리
     _firestoreService.markNoticeAsRead(widget.notice.id);
@@ -109,9 +117,7 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
                           _firestoreService.requestPushNotification(
                             widget.notice.id,
                           );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("푸시 요청이 전송되었습니다.")),
-                          );
+                          ToastUtils.show(context, "푸시 알림이 전송되었습니다.");
                         },
                         child: const Text("전송"),
                       ),
@@ -126,29 +132,18 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
               onPressed: () {
                 showDialog(
                   context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text("공지 삭제"),
-                    content: const Text("이 공지를 삭제하시겠습니까?"),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text("취소"),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _firestoreService.deleteNotice(widget.notice.id);
-                          Navigator.pop(context); // 화면 종료
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("삭제되었습니다.")),
-                          );
-                        },
-                        child: const Text(
-                          "삭제",
-                          style: TextStyle(color: Colors.red),
-                        ),
-                      ),
-                    ],
+                  builder: (context) => CustomDialog(
+                    title: "공지 삭제",
+                    contentText: "이 공지를 삭제하시겠습니까?",
+                    cancelText: "취소",
+                    confirmText: "삭제",
+                    isDestructive: true,
+                    onConfirm: () {
+                      Navigator.pop(context);
+                      _firestoreService.deleteNotice(widget.notice.id);
+                      Navigator.pop(context); // 화면 종료
+                      ToastUtils.show(context, "공지가 삭제되었습니다.");
+                    },
                   ),
                 );
               },
@@ -167,30 +162,21 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
                 }
               }
 
-              return IconButton(
-                icon: Icon(
-                  isScraped
-                      ? Icons.bookmark_rounded
-                      : Icons.bookmark_border_rounded,
-                  color: isScraped
-                      ? const Color(0xFFFFD180)
-                      : const Color(0xFFB0B8C1),
-                  size: 28,
-                ),
-                onPressed: () {
+              return JellyButton(
+                isActive: isScraped,
+                activeIcon: Icons.bookmark_rounded,
+                inactiveIcon: Icons.bookmark_border_rounded,
+                activeColor: const Color(0xFFFFD180),
+                inactiveColor: const Color(0xFFB0B8C1),
+                size: 28,
+                onTap: () {
                   _firestoreService.toggleNoticeScrap(
                     widget.notice.id,
                     isScraped,
                   );
-                  ScaffoldMessenger.of(context).clearSnackBars();
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    SnackBar(
-                      content: Text(
-                        !isScraped ? "스크랩 보관함에 저장되었어요." : "스크랩이 해제되었어요.",
-                      ),
-                      duration: const Duration(milliseconds: 1000),
-                      behavior: SnackBarBehavior.floating,
-                    ),
+                  ToastUtils.show(
+                    context,
+                    !isScraped ? "스크랩 보관함에 저장되었어요." : "스크랩이 해제되었어요.",
                   );
                 },
               );
@@ -449,35 +435,52 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
-            "🛠️ 관리자 메뉴",
+            "관리자 메뉴",
             style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
           ),
           const SizedBox(height: 12),
           SwitchListTile(
-            title: const Text("중요 공지로 설정"),
+            title: const Text(
+              "중요 공지로 설정",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF333D4B),
+              ),
+            ),
             subtitle: const Text("중요 공지 위젯에 상단 노출됩니다."),
-            value:
-                widget.notice.isImportant ??
-                false, // Notice 모델에 필드 필요 (없으면 fetch 필요) -> Notice는 불변이므로 setState 반영 어려움.
-            // 해결책: StreamBuilder 사용하거나, toggle 시 setState로 notice 객체 자체를 업데이트해야 함.
-            // 여기서는 간단히 DB 업데이트만 하고, 화면 반영은 notice.isImportant가 없어 UI상 즉시 반영 안될 수 있음.
-            // -> Notice 모델에 isImportant 필드가 있는지 확인 필요.
+            value: _isImportant,
+            activeColor: const Color(0xFF3182F6),
             onChanged: (val) async {
+              setState(() {
+                _isImportant = val;
+              });
               await _firestoreService.setNoticeImportant(widget.notice.id, val);
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text("변경되었습니다.")));
+              if (mounted) {
+                ToastUtils.show(context, "변경되었습니다.");
+              }
             },
           ),
           SwitchListTile(
-            title: const Text("긴급 공지로 설정"),
+            title: const Text(
+              "긴급 공지로 설정",
+              style: TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.bold,
+                color: Color(0xFF333D4B),
+              ),
+            ),
             subtitle: const Text("긴급 공지 위젯에 노출됩니다."),
-            value: widget.notice.isUrgent ?? false,
+            value: _isUrgent,
+            activeColor: const Color(0xFF3182F6),
             onChanged: (val) async {
+              setState(() {
+                _isUrgent = val;
+              });
               await _firestoreService.setNoticeUrgent(widget.notice.id, val);
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text("변경되었습니다.")));
+              if (mounted) {
+                ToastUtils.show(context, "변경되었습니다.");
+              }
             },
           ),
         ],

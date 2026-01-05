@@ -1,18 +1,20 @@
 import 'package:flutter/material.dart';
 import '../../screens/notice_search_screen.dart';
+import '../common/bounceable.dart';
 
 class NoticeSearchWidget extends StatelessWidget {
   const NoticeSearchWidget({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
+    return Bounceable(
       onTap: () {
         Navigator.push(
           context,
           MaterialPageRoute(builder: (context) => const NoticeSearchScreen()),
         );
       },
+      borderRadius: BorderRadius.circular(24),
       child: Container(
         width: double.infinity,
         padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

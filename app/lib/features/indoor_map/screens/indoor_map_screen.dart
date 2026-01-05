@@ -10,6 +10,7 @@ import '../services/navigation_service.dart';
 import '../widgets/search_bar_widget.dart';
 import '../widgets/floor_selector_widget.dart';
 import '../widgets/path_visualizer_widget.dart';
+import '../../../widgets/common/custom_loading_indicator.dart';
 
 class IndoorMapScreen extends StatefulWidget {
   const IndoorMapScreen({super.key});
@@ -189,7 +190,7 @@ class _IndoorMapScreenState extends State<IndoorMapScreen> {
         centerTitle: true,
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? Center(child: CustomLoadingIndicator())
           : _errorMessage != null
           ? _buildErrorView()
           : _buildMapView(),

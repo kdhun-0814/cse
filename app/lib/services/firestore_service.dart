@@ -4,6 +4,7 @@ import 'package:rxdart/rxdart.dart';
 import '../models/notice.dart';
 import '../models/group.dart';
 import '../models/event.dart';
+import 'package:uuid/uuid.dart';
 
 class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -333,11 +334,33 @@ class FirestoreService {
       'deadline': Timestamp.fromDate(deadline),
       'maxMembers': maxMembers,
       'linkUrl': linkUrl,
-      'qnaList': [],
+      'qnaList': [], // ★ comments -> qnaList
       'likes': [],
       'isManuallyClosed': false,
       'isOfficial': isOfficial,
       'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
+
+  // 모임 수정
+  Future<void> updateGroup({
+    required String groupId,
+    required String title,
+    required String content,
+    required List<String> hashtags,
+    required DateTime deadline,
+    required int maxMembers,
+    String? linkUrl,
+    bool isOfficial = false,
+  }) async {
+    await _db.collection('groups').doc(groupId).update({
+      'title': title,
+      'content': content,
+      'hashtags': hashtags,
+      'deadline': Timestamp.fromDate(deadline),
+      'maxMembers': maxMembers,
+      'linkUrl': linkUrl,
+      'isOfficial': isOfficial,
     });
   }
 
@@ -396,14 +419,122 @@ class FirestoreService {
     await _db.collection('groups').doc(groupId).delete();
   }
 
-  // 모임 질문 등록
-  Future<void> addQuestion(String groupId, String question) async {
-    String userName = "익명";
+  // ★ 질문/답변 등록 (Advanced QnA)
+  Future<void> addQnA({
+    required String groupId,
+    required String content,
+    required bool isAnonymous,
+    String? replyToId,
+  }) async {
+    String uid = _auth.currentUser!.uid;
+    DocumentReference groupRef = _db.collection('groups').doc(groupId);
 
-    QnA newQna = QnA(question: question, questionerName: userName);
+    // 트랜잭션으로 처리하여 익명 ID 충돌 방지 및 안전한 추가
+    await _db.runTransaction((transaction) async {
+      DocumentSnapshot groupSnapshot = await transaction.get(groupRef);
+      if (!groupSnapshot.exists) return;
 
-    await _db.collection('groups').doc(groupId).update({
-      'qnaList': FieldValue.arrayUnion([newQna.toMap()]),
+      Map<String, dynamic> data = groupSnapshot.data() as Map<String, dynamic>;
+      List<dynamic> qnaListDynamic = data['qnaList'] ?? [];
+      List<QnAItem> qnaList =
+          qnaListDynamic.map((e) => QnAItem.fromMap(e)).toList();
+
+      // 익명 ID 로직
+      int? anonymousId;
+      if (isAnonymous) {
+        // 이미 익명으로 작성한 적이 있는지 확인
+        try {
+          // 같은 유저가 쓴 익명 글 찾기
+          var myAnonymousPost = qnaList.firstWhere(
+            (q) => q.userId == uid && q.isAnonymous && q.anonymousId != null,
+          );
+          anonymousId = myAnonymousPost.anonymousId;
+        } catch (e) {
+          // 없으면 새로운 번호 부여
+          // 기존 익명 번호들의 최댓값 찾기
+          int maxId = 0;
+          for (var q in qnaList) {
+            if (q.anonymousId != null && q.anonymousId! > maxId) {
+              maxId = q.anonymousId!;
+            }
+          }
+          anonymousId = maxId + 1;
+        }
+      }
+
+      // 유저 이름 가져오기
+      DocumentSnapshot userDoc = await transaction
+          .get(_db.collection('users').doc(uid));
+      String userName = (userDoc.data() as Map<String, dynamic>)['name'] ?? '익명';
+
+      // 새 항목 생성
+      QnAItem newItem = QnAItem(
+        id: const Uuid().v4(), // pubspec.yaml에 uuid 패키지 필요 (없을 시 string interpolation으로 대체)
+        userId: uid,
+        userName: userName,
+        content: content,
+        createdAt: DateTime.now(),
+        isAnonymous: isAnonymous,
+        anonymousId: anonymousId,
+        replyToId: replyToId,
+      );
+
+      // 배열에 추가
+      transaction.update(groupRef, {
+        'qnaList': FieldValue.arrayUnion([newItem.toMap()]),
+      });
+    });
+  }
+
+  // ★ QnA 수정
+  Future<void> updateQnA(String groupId, String qnaId, String newContent) async {
+    DocumentReference groupRef = _db.collection('groups').doc(groupId);
+
+    await _db.runTransaction((transaction) async {
+      DocumentSnapshot groupSnapshot = await transaction.get(groupRef);
+      if (!groupSnapshot.exists) return;
+
+      Map<String, dynamic> data = groupSnapshot.data() as Map<String, dynamic>;
+      List<dynamic> qnaListDynamic = data['qnaList'] ?? [];
+      
+      // 전체 리스트를 새로 만들어서 교체해야 함 (배열 내 특정 객체 수정 불가)
+      List<Map<String, dynamic>> updatedList = [];
+      
+      for (var item in qnaListDynamic) {
+        if (item['id'] == qnaId) {
+          item['content'] = newContent;
+          item['isEdited'] = true;
+        }
+        updatedList.add(item);
+      }
+
+      transaction.update(groupRef, {'qnaList': updatedList});
+    });
+  }
+
+  // ★ QnA 삭제 (Soft Delete)
+  Future<void> deleteQnA(String groupId, String qnaId) async {
+    DocumentReference groupRef = _db.collection('groups').doc(groupId);
+
+    await _db.runTransaction((transaction) async {
+      DocumentSnapshot groupSnapshot = await transaction.get(groupRef);
+      if (!groupSnapshot.exists) return;
+
+      Map<String, dynamic> data = groupSnapshot.data() as Map<String, dynamic>;
+      List<dynamic> qnaListDynamic = data['qnaList'] ?? [];
+      
+      List<Map<String, dynamic>> updatedList = [];
+      
+      for (var item in qnaListDynamic) {
+        if (item['id'] == qnaId) {
+          item['isDeleted'] = true;
+          // 내용은 유지 or "삭제된 메시지"로 변경? 요구사항에는 없으나 보통 내용도 가림.
+          // 여기선 isDeleted 플래그만 세우고 UI에서 처리
+        }
+        updatedList.add(item);
+      }
+
+      transaction.update(groupRef, {'qnaList': updatedList});
     });
   }
 

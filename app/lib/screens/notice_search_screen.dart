@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/notice.dart';
+import '../services/firestore_service.dart';
 import 'notice_detail_screen.dart';
+import '../widgets/common/custom_loading_indicator.dart';
+import '../utils/toast_utils.dart';
 
 class NoticeSearchScreen extends StatefulWidget {
   const NoticeSearchScreen({super.key});
@@ -55,9 +58,7 @@ class _NoticeSearchScreenState extends State<NoticeSearchScreen> {
     } catch (e) {
       if (mounted) {
         setState(() => _isLoading = false);
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("데이터를 불러오는데 실패했습니다.")));
+        ToastUtils.show(context, "데이터를 불러오는데 실패했습니다.", isError: true);
       }
     }
   }
@@ -94,7 +95,7 @@ class _NoticeSearchScreenState extends State<NoticeSearchScreen> {
           focusNode: _focusNode,
           onChanged: _onSearchChanged,
           decoration: const InputDecoration(
-            hintText: "제목으로 검색해보세요",
+            hintText: "제목 또는 내용으로 검색해보세요",
             border: InputBorder.none,
             hintStyle: TextStyle(color: Colors.grey),
           ),
@@ -102,7 +103,7 @@ class _NoticeSearchScreenState extends State<NoticeSearchScreen> {
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CustomLoadingIndicator())
           : _query.isEmpty
           ? _buildEmptyState()
           : _searchResults.isEmpty

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/notice.dart';
 import '../../screens/notice_detail_screen.dart';
 import '../../screens/notice_list_screen.dart';
+import '../common/bounceable.dart'; // Toss-style Interaction
 
 class ImportantNoticeWidget extends StatefulWidget {
   final bool forceShow;
@@ -99,7 +100,7 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
                       Text(
                         "중요 공지",
                         style: TextStyle(
-                          fontSize: 22,
+                          fontSize: 18,
                           fontWeight: FontWeight.bold,
                           color: Color(0xFF191F28),
                         ),
@@ -158,15 +159,15 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
                         Text(
                           "중요 공지",
                           style: TextStyle(
-                            fontSize: 22,
+                            fontSize: 18,
                             fontWeight: FontWeight.bold,
                             color: Color(0xFF191F28),
                           ),
                         ),
                       ],
                     ),
-                    TextButton(
-                      onPressed: () {
+                    Bounceable(
+                      onTap: () {
                         // 전체보기 이동
                         Navigator.push(
                           context,
@@ -178,17 +179,19 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
                           ),
                         );
                       },
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Text(
-                        "전체보기",
-                        style: TextStyle(
-                          color: const Color(0xFF8B95A1),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
+                      borderRadius: BorderRadius.circular(8),
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: 8,
+                          vertical: 4,
+                        ),
+                        child: const Text(
+                          "전체보기",
+                          style: TextStyle(
+                            color: Color(0xFF8B95A1),
+                            fontSize: 13,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                       ),
                     ),
@@ -197,29 +200,32 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
               ),
               const Divider(height: 1, color: Color(0xFFF2F4F6)),
               // Content Area
-              displayNotices.length <= 3
-                  ? Column(
-                      children: displayNotices.map((notice) {
-                        return _buildNoticeItem(context, notice);
-                      }).toList(),
-                    )
-                  : SizedBox(
-                      height: 52.0 * 3, // Total height for 3 items
-                      child: PageView.builder(
-                        controller: _pageController,
-                        physics: const NeverScrollableScrollPhysics(),
-                        padEnds: false, // Align content to top
-                        scrollDirection: Axis.vertical,
-                        // infinite scroll (no itemCount)
-                        itemBuilder: (context, index) {
-                          final realIndex = index % displayNotices.length;
-                          return _buildNoticeItem(
-                            context,
-                            displayNotices[realIndex],
-                          );
-                        },
+              ClipRRect(
+                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                child: displayNotices.length <= 3
+                    ? Column(
+                        children: displayNotices.map((notice) {
+                          return _buildNoticeItem(context, notice);
+                        }).toList(),
+                      )
+                    : SizedBox(
+                        height: 52.0 * 3, // Total height for 3 items
+                        child: PageView.builder(
+                          controller: _pageController,
+                          physics: const NeverScrollableScrollPhysics(),
+                          padEnds: false, // Align content to top
+                          scrollDirection: Axis.vertical,
+                          // infinite scroll (no itemCount)
+                          itemBuilder: (context, index) {
+                            final realIndex = index % displayNotices.length;
+                            return _buildNoticeItem(
+                              context,
+                              displayNotices[realIndex],
+                            );
+                          },
+                        ),
                       ),
-                    ),
+              ),
             ],
           ),
         );
@@ -230,9 +236,7 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
   Widget _buildNoticeItem(BuildContext context, Notice notice) {
     return SizedBox(
       height: 52, // Fixed height for alignment
-      child: ListTile(
-        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
-        visualDensity: const VisualDensity(vertical: -4), // Compact
+      child: Bounceable(
         onTap: () {
           Navigator.push(
             context,
@@ -241,27 +245,32 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
             ),
           );
         },
-        leading: const Icon(
-          Icons.star_rounded,
-          color: Color(0xFFFFD180),
-          size: 24,
-        ),
-        title: Transform.translate(
-          offset: const Offset(-16, 0), // Adjust icon spacing
-          child: Text(
-            notice.title,
-            style: const TextStyle(
-              fontSize: 15,
-              fontWeight: FontWeight.w600,
-              color: Color(0xFF333D4B),
-            ),
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+        child: ListTile(
+          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+          visualDensity: const VisualDensity(vertical: -4), // Compact
+          // onTap 제거 (Bounceable에서 처리)
+          leading: const Icon(
+            Icons.star_rounded,
+            color: Color(0xFFFFD180),
+            size: 24,
           ),
-        ),
-        trailing: Text(
-          notice.date.length > 5 ? notice.date.substring(5) : notice.date,
-          style: const TextStyle(fontSize: 12, color: Color(0xFF8B95A1)),
+          title: Transform.translate(
+            offset: const Offset(-16, 0), // Adjust icon spacing
+            child: Text(
+              notice.title,
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                color: Color(0xFF333D4B),
+              ),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            ),
+          ),
+          trailing: Text(
+            notice.date.length > 5 ? notice.date.substring(5) : notice.date,
+            style: const TextStyle(fontSize: 12, color: Color(0xFF8B95A1)),
+          ),
         ),
       ),
     );

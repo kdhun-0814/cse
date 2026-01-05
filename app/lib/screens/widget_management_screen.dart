@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../services/firestore_service.dart';
 import '../models/home_widget_config.dart';
+import '../widgets/common/custom_loading_indicator.dart';
 
 class WidgetManagementScreen extends StatefulWidget {
   const WidgetManagementScreen({super.key});
@@ -98,7 +100,7 @@ class _WidgetManagementScreenState extends State<WidgetManagementScreen> {
         ),
       ),
       body: _isLoading
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CustomLoadingIndicator())
           : Column(
               children: [
                 Container(
@@ -187,6 +189,7 @@ class _WidgetManagementScreenState extends State<WidgetManagementScreen> {
           value: widgetConfig.isVisible,
           activeColor: const Color(0xFF3182F6),
           onChanged: (bool value) {
+            HapticFeedback.lightImpact(); // 햅틱 피드백 추가
             setState(() {
               _currentWidgets[index] = HomeWidgetConfig(
                 id: widgetConfig.id,

@@ -3,8 +3,12 @@ import 'dart:async'; // StreamSubscription 사용을 위해 추가
 import 'package:flutter_slidable/flutter_slidable.dart'; // ★ 재추가
 import '../../models/group.dart';
 import '../../services/firestore_service.dart';
+import '../../utils/toast_utils.dart';
+import '../../widgets/common/custom_loading_indicator.dart';
+import '../../widgets/common/custom_dialog.dart';
 import '../../widgets/like_button.dart'; // ★ 추가
 import 'group_detail_screen.dart';
+import 'group_create_screen.dart';
 
 class GroupListScreen extends StatefulWidget {
   final String filterType; // 'all', 'my', 'liked'
@@ -147,7 +151,7 @@ class _GroupListScreenState extends State<GroupListScreen> {
         // 1. 로딩 중
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const Center(
-            child: CircularProgressIndicator(color: Color(0xFF3182F6)),
+            child: CustomLoadingIndicator(),
           );
         }
         // 2. 에러 발생
@@ -189,8 +193,14 @@ class _GroupListScreenState extends State<GroupListScreen> {
         }
        
         generalGroups = [
-          ...generalGroups.where((g) => !g.isExpired),
-          ...generalGroups.where((g) => g.isExpired),
+          // 1. 진행 중 + 찜함
+          ...generalGroups.where((g) => !g.isExpired && g.isLiked),
+          // 2. 진행 중 + 찜 안함
+          ...generalGroups.where((g) => !g.isExpired && !g.isLiked),
+          // 3. 마감됨 + 찜함
+          ...generalGroups.where((g) => g.isExpired && g.isLiked),
+          // 4. 마감됨 + 찜 안함
+          ...generalGroups.where((g) => g.isExpired && !g.isLiked),
         ];
 
         return ListView(
@@ -394,7 +404,7 @@ class _GroupListScreenState extends State<GroupListScreen> {
             onPressed: (context) {
               _confirmDelete(group);
             },
-            backgroundColor: const Color(0xFFEF9A9A),
+            backgroundColor: const Color(0xFFE93D3D).withOpacity(0.8), // 브랜드 레드 + 투명도
             foregroundColor: Colors.white,
             borderRadius: BorderRadius.circular(20),
             child: Container(
@@ -408,7 +418,13 @@ class _GroupListScreenState extends State<GroupListScreen> {
                 children: [
                   Icon(Icons.delete, size: 28),
                   SizedBox(height: 4),
-                  Text("삭제 (관리자)", style: TextStyle(fontSize: 10)),
+                  Text(
+                    "삭제 (관리자)",
+                    style: TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
                 ],
               ),
             ),
@@ -469,16 +485,17 @@ class _GroupListScreenState extends State<GroupListScreen> {
                       ),
                       Padding( // 패딩 조정
                         padding: const EdgeInsets.only(left: 8),
-                        child: LikeButton(
-                          isLiked: group.isLiked,
-                          likeCount: group.likeCount,
-                          onTap: () {
-                            _firestoreService.toggleGroupLike(
-                              group.id,
-                              group.isLiked,
-                            );
-                          },
-                        ),
+                          child: LikeButton(
+                            isLiked: group.isLiked,
+                            likeCount: group.likeCount,
+                            enabled: !isExpired, // 마감된 경우 비활성화
+                            onTap: () {
+                              _firestoreService.toggleGroupLike(
+                                group.id,
+                                group.isLiked,
+                              );
+                            },
+                          ),
                       ),
                     ],
                   ),
@@ -549,27 +566,19 @@ class _GroupListScreenState extends State<GroupListScreen> {
   void _confirmDelete(Group group) {
     showDialog(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("관리자 권한으로 삭제"),
-        content: const Text("정말로 이 모집글을 삭제하시겠습니까?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text("취소"),
-          ),
-          TextButton(
-            onPressed: () async {
-              await _firestoreService.deleteGroup(group.id);
-              if (mounted) {
-                Navigator.pop(ctx);
-                ScaffoldMessenger.of(
-                  context,
-                ).showSnackBar(const SnackBar(content: Text("모집이 삭제되었습니다.")));
-              }
-            },
-            child: const Text("삭제", style: TextStyle(color: Colors.red)),
-          ),
-        ],
+      builder: (ctx) => CustomDialog(
+        title: "관리자 권한으로 삭제",
+        contentText: "정말로 이 모집글을 삭제하시겠습니까?",
+        cancelText: "취소",
+        confirmText: "삭제",
+        isDestructive: true,
+        onConfirm: () async {
+          await _firestoreService.deleteGroup(group.id);
+          if (mounted) {
+            Navigator.pop(ctx);
+            ToastUtils.show(context, "모집이 삭제되었습니다.");
+          }
+        },
       ),
     );
   }

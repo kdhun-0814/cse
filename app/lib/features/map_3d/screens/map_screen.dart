@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:model_viewer_plus/model_viewer_plus.dart';
 import '../services/map_service.dart'; // Import MapService
 import '../services/path_service.dart'; // Import PathService
+import '../../../utils/toast_utils.dart';
+import '../../../widgets/common/custom_loading_indicator.dart';
 
 class MapScreen extends StatefulWidget {
   const MapScreen({super.key});
@@ -115,9 +117,7 @@ class _MapScreenState extends State<MapScreen> {
       _cameraOrbit = '0deg 45deg 20m'; // Closer zoom
     });
 
-    ScaffoldMessenger.of(
-      context,
-    ).showSnackBar(SnackBar(content: Text("${room.name}로 이동합니다.")));
+    ToastUtils.show(context, "${room.name}로 이동합니다.");
   }
 
   void _calculateAndShowPath() {
@@ -213,9 +213,7 @@ class _MapScreenState extends State<MapScreen> {
               _debugZ = 0;
               _cameraTarget = '0m 0m 0m';
               _cameraOrbit = '0deg 90deg 100m'; // Zoom out
-              ScaffoldMessenger.of(
-                context,
-              ).showSnackBar(const SnackBar(content: Text("좌표 보정 모드 ON")));
+              ToastUtils.show(context, "좌표 보정 모드 ON");
             }
           });
         },
@@ -226,7 +224,7 @@ class _MapScreenState extends State<MapScreen> {
       body: Stack(
         children: [
           if (_isLoading)
-            const Center(child: CircularProgressIndicator())
+            const Center(child: CustomLoadingIndicator())
           else if (_modelUrl == null || _modelUrl!.isEmpty)
             const Center(child: Text("맵 로딩 실패"))
           else

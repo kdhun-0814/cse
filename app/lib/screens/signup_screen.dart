@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/common/custom_loading_indicator.dart';
+import '../widgets/common/custom_dialog.dart';
+import '../utils/toast_utils.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -23,18 +26,14 @@ class _SignupScreenState extends State<SignupScreen> {
         _pwCtrl.text.isEmpty ||
         _lastNameCtrl.text.isEmpty ||
         _firstNameCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("모든 정보를 입력해주세요.")));
+      ToastUtils.show(context, "모든 정보를 입력해주세요.", isError: true);
       return;
     }
 
     // 2. 학번 자릿수 검사 (10자리)
     int idLength = _studentIdCtrl.text.length;
     if (idLength != 9 && idLength != 10) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("정확한 학번을 입력해주세요.")));
+      ToastUtils.show(context, "정확한 학번을 입력해주세요.", isError: true);
       return;
     }
 
@@ -42,9 +41,7 @@ class _SignupScreenState extends State<SignupScreen> {
     String password = _pwCtrl.text;
     RegExp passwordRegex = RegExp(r'^(?=.*[A-Za-z])(?=.*\d).{8,}$');
     if (!passwordRegex.hasMatch(password)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("비밀번호는 영문+숫자 포함 8자리 이상이어야 합니다.")),
-      );
+      ToastUtils.show(context, "비밀번호는 영문+숫자 포함 8자리 이상이어야 합니다.", isError: true);
       return;
     }
 
@@ -89,32 +86,14 @@ class _SignupScreenState extends State<SignupScreen> {
         showDialog(
           context: context,
           barrierDismissible: false,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ), // 팝업도 둥글게
-            title: const Text(
-              "인증 메일 발송 완료",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            content: Text(
-              "$email 로\n인증 메일을 보냈습니다.\n\n반드시 메일함에서 링크를 클릭하여\n인증을 완료한 후 로그인해주세요.",
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  Navigator.pop(context);
-                },
-                child: const Text(
-                  "확인",
-                  style: TextStyle(
-                    color: Color(0xFF3182F6),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
+          builder: (ctx) => CustomDialog(
+            title: "인증 메일 발송 완료",
+            contentText: "$email 로\n인증 메일을 보냈습니다.\n\n반드시 메일함에서 링크를 클릭하여\n인증을 완료한 후 로그인해주세요.",
+            confirmText: "확인",
+            onConfirm: () {
+              Navigator.pop(ctx);
+              Navigator.pop(context);
+            },
           ),
         );
       }
@@ -123,9 +102,7 @@ class _SignupScreenState extends State<SignupScreen> {
       if (e is FirebaseAuthException && e.code == 'email-already-in-use') {
         message = "이미 가입된 학번(이메일)입니다.";
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ToastUtils.show(context, message, isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -326,13 +303,9 @@ class _SignupScreenState extends State<SignupScreen> {
                     ),
                   ),
                   child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
+                      ? const CustomLoadingIndicator(
+                          color: Colors.white,
+                          size: 20,
                         )
                       : const Text(
                           "인증 메일 받기",

@@ -3,6 +3,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'screens/main_nav_screen.dart';
 import 'screens/welcome_screen.dart';
+import 'widgets/common/custom_loading_indicator.dart';
 
 class AuthGate extends StatelessWidget {
   const AuthGate({super.key});
@@ -32,7 +33,7 @@ class AuthGate extends StatelessWidget {
               return const Scaffold(
                 backgroundColor: Colors.white,
                 body: Center(
-                  child: CircularProgressIndicator(color: Color(0xFF3182F6)),
+                  child: CustomLoadingIndicator(),
                 ),
               );
             }

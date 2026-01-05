@@ -2,6 +2,7 @@
 import 'package:flutter/services.dart';
 import 'dart:ui'; // for lerpDouble
 import 'package:table_calendar/table_calendar.dart';
+import '../widgets/common/custom_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firestore_service.dart';
@@ -12,11 +13,13 @@ import '../widgets/home/important_notice_widget.dart'; // NEW
 import '../widgets/home/hot_notice_widget.dart';
 import '../widgets/home/notice_search_widget.dart'; // NEW
 import '../widgets/home/category_grid_widget.dart';
+import '../widgets/common/custom_loading_indicator.dart';
 import '../models/home_widget_config.dart';
 import 'widget_management_screen.dart';
 import 'admin/write_notice_screen.dart'; // NEW
 import 'admin/admin_notice_management_screen.dart'; // NEW
 import 'calendar_screen.dart';
+import '../widgets/common/bounceable.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -31,11 +34,11 @@ class _HomeScreenState extends State<HomeScreen>
 
   // 기본 위젯 설정 (초기값 및 폴백)
   final List<HomeWidgetConfig> _defaultWidgets = [
-    HomeWidgetConfig(id: 'urgent_notice', isVisible: true),
-    HomeWidgetConfig(id: 'notice_search', isVisible: true), // NEW
-    HomeWidgetConfig(id: 'important_notice', isVisible: true), // NEW
+    HomeWidgetConfig(id: 'notice_search', isVisible: true),
     HomeWidgetConfig(id: 'calendar', isVisible: true),
     HomeWidgetConfig(id: 'categories', isVisible: true),
+    HomeWidgetConfig(id: 'urgent_notice', isVisible: true),
+    HomeWidgetConfig(id: 'important_notice', isVisible: true),
     HomeWidgetConfig(id: 'hot_notice', isVisible: true),
   ];
 
@@ -267,7 +270,7 @@ class _HomeScreenState extends State<HomeScreen>
         ],
       ),
       body: _isLoadingWidgets
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CustomLoadingIndicator())
           : Stack(
               children: [
                 ReorderableListView(
@@ -530,8 +533,8 @@ class _HomeScreenState extends State<HomeScreen>
                           true;
                     }
 
-                    return AlertDialog(
-                      title: const Text("알림 설정"),
+                    return CustomDialog(
+                      title: "알림 설정",
                       content: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -545,12 +548,8 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                         ],
                       ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text("닫기"),
-                        ),
-                      ],
+                      confirmText: "닫기",
+                      onConfirm: () => Navigator.pop(context),
                     );
                   },
                 );
@@ -622,7 +621,7 @@ class _HomeScreenState extends State<HomeScreen>
         Widget eventContent;
         if (todayEvents.isEmpty) {
           eventContent = const Text(
-            "오늘은 일정이 없어요.",
+            "오늘은 일정이 없어요",
             style: TextStyle(fontSize: 15, color: Color(0xFF8B95A1)),
           );
         } else {
@@ -685,13 +684,14 @@ class _HomeScreenState extends State<HomeScreen>
           );
         }
 
-        return GestureDetector(
+        return Bounceable(
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const CalendarScreen()),
             );
           },
+          borderRadius: BorderRadius.circular(24),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

@@ -1,6 +1,9 @@
 ﻿import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../services/firestore_service.dart';
+import '../../models/group.dart';
+import '../../utils/toast_utils.dart';
+import '../../widgets/common/custom_loading_indicator.dart';
 
 class GroupCreateScreen extends StatefulWidget {
   // ★ 추가: 생성이 완료되면 호출할 콜백 함수
@@ -42,9 +45,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
 
   Future<void> _createGroup() async {
     if (_titleController.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("제목을 입력해주세요.")));
+      ToastUtils.show(context, "제목을 입력해주세요.", isError: true);
       return;
     }
 
@@ -77,9 +78,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
 
       if (mounted) {
         // ★ 요청하신 멘트로 수정
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("모집 만들기를 완료했어요.")));
+        ToastUtils.show(context, "모집 만들기를 완료했어요.");
 
         // 입력창 초기화
         _titleController.clear();
@@ -96,9 +95,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("잠시 오류가 발생했어요.: $e")));
+        ToastUtils.show(context, "잠시 오류가 발생했어요.: $e", isError: true);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -301,14 +298,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                 ),
               ),
               child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
+                  ? const CustomLoadingIndicator(color: Colors.white)
                   : const Text(
                       "모집 만들기",
                       style: TextStyle(

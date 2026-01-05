@@ -1,35 +1,65 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
-class QnA {
-  final String question;
-  String? answer;
-  final String questionerName;
+class QnAItem {
+  final String id; // UUID
+  final String userId; // 실제 작성자 UID
+  final String userName; // 실제 작성자 이름
+  final String content;
+  final DateTime createdAt;
+  final bool isAnonymous;
+  final int? anonymousId; // 익명 번호 (익명1, 익명2...)
+  final String? replyToId; // 부모 질문 ID (null이면 새 질문)
+  final bool isDeleted;
+  final bool isEdited;
 
-  QnA({required this.question, required this.questionerName, this.answer});
+  QnAItem({
+    required this.id,
+    required this.userId,
+    required this.userName,
+    required this.content,
+    required this.createdAt,
+    this.isAnonymous = false,
+    this.anonymousId,
+    this.replyToId,
+    this.isDeleted = false,
+    this.isEdited = false,
+  });
 
-  // Map으로 변환 (DB 저장용)
   Map<String, dynamic> toMap() {
     return {
-      'question': question,
-      'questionerName': questionerName,
-      'answer': answer,
+      'id': id,
+      'userId': userId,
+      'userName': userName,
+      'content': content,
+      'createdAt': Timestamp.fromDate(createdAt),
+      'isAnonymous': isAnonymous,
+      'anonymousId': anonymousId,
+      'replyToId': replyToId,
+      'isDeleted': isDeleted,
+      'isEdited': isEdited,
     };
   }
 
-  // Map에서 객체로 (DB 읽기용)
-  factory QnA.fromMap(Map<String, dynamic> map) {
-    return QnA(
-      question: map['question'] ?? '',
-      questionerName: map['questionerName'] ?? '익명',
-      answer: map['answer'],
+  factory QnAItem.fromMap(Map<String, dynamic> map) {
+    return QnAItem(
+      id: map['id'] ?? '',
+      userId: map['userId'] ?? '',
+      userName: map['userName'] ?? '익명',
+      content: map['content'] ?? '',
+      createdAt: (map['createdAt'] as Timestamp).toDate(),
+      isAnonymous: map['isAnonymous'] ?? false,
+      anonymousId: map['anonymousId'],
+      replyToId: map['replyToId'],
+      isDeleted: map['isDeleted'] ?? false,
+      isEdited: map['isEdited'] ?? false,
     );
   }
 }
 
 class Group {
   final String id;
-  final String authorId; // ★ 작성자 UID (DB 저장)
+  final String authorId;
   final String title;
   final String content;
   final List<String> hashtags;
@@ -37,14 +67,13 @@ class Group {
   final int maxMembers;
   final String? linkUrl;
 
-  List<QnA> qnaList;
+  List<QnAItem> qnaList; // ★ Advanced QnA
   bool isManuallyClosed;
 
-  // ★ UI용 계산 필드 (DB 저장 X)
   final bool isMyGroup;
   final bool isLiked;
-  final int likeCount; // ★ 찜 개수
-  final bool isOfficial; // ★ 공식(학생회) 글 여부
+  final int likeCount;
+  final bool isOfficial;
 
   Group({
     required this.id,
@@ -60,26 +89,27 @@ class Group {
     this.isMyGroup = false,
     this.isLiked = false,
     this.likeCount = 0,
-    this.isOfficial = false, // 기본값 false
+    this.isOfficial = false,
   });
 
   bool get isExpired {
     final now = DateTime.now();
-    // 마감일 다음날 0시가 지나면 만료로 처리
     final isDateOver = now.isAfter(deadline.add(const Duration(days: 1)));
     return isDateOver || isManuallyClosed;
   }
 
-  // ★ Firestore -> App
   factory Group.fromFirestore(DocumentSnapshot doc) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
     final currentUser = FirebaseAuth.instance.currentUser;
 
-    // QnA 리스트 변환
+    // QnA 리스트 변환 (DB 필드명 'qnaList'로 복귀 or 'comments' 유지? -> 'qnaList'로 변경)
+    // 기존 데이터 'comments'가 있다면 마이그레이션 필요하지만, 개발 단계이므로 'qnaList' 사용.
+    // 만약 이전 'comments'를 살리고 싶다면 아래에서 체크해야 함.
     var qnaData = data['qnaList'] as List<dynamic>? ?? [];
-    List<QnA> qnas = qnaData.map((e) => QnA.fromMap(e)).toList();
+    List<QnAItem> loadedQnas =
+        qnaData.map((e) => QnAItem.fromMap(e)).toList();
 
-    // 찜 목록 확인 (List<String> likes 필드가 DB에 있다고 가정)
+    // 찜 목록 확인
     List<dynamic> likes = data['likes'] ?? [];
     bool liked = currentUser != null && likes.contains(currentUser.uid);
 
@@ -92,10 +122,8 @@ class Group {
       deadline: (data['deadline'] as Timestamp).toDate(),
       maxMembers: data['maxMembers'] ?? 1,
       linkUrl: data['linkUrl'],
-      qnaList: qnas,
+      qnaList: loadedQnas,
       isManuallyClosed: data['isManuallyClosed'] ?? false,
-
-      // 로그인한 유저 ID와 작성자 ID 비교
       isMyGroup: currentUser != null && (data['authorId'] == currentUser.uid),
       isLiked: liked,
       likeCount: likes.length,

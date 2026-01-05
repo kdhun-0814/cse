@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import '../../models/event.dart'; // Event 모델 import
 import '../../services/firestore_service.dart';
+import '../../utils/toast_utils.dart';
+import '../../widgets/common/custom_loading_indicator.dart';
 
 class EventEditScreen extends StatefulWidget {
   final Event event; // 수정할 이벤트 객체
@@ -53,16 +55,12 @@ class _EventEditScreenState extends State<EventEditScreen> {
       );
 
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("수정 완료!")));
+        ToastUtils.show(context, "수정 완료!");
         Navigator.pop(context);
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("수정 실패")));
+        ToastUtils.show(context, "수정 실패", isError: true);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -164,7 +162,7 @@ class _EventEditScreenState extends State<EventEditScreen> {
                   elevation: 0,
                 ),
                 child: _isLoading
-                    ? const CircularProgressIndicator(color: Colors.white)
+                    ? const CustomLoadingIndicator(color: Colors.white)
                     : const Text(
                         "수정 완료",
                         style: TextStyle(

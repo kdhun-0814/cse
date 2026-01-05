@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import '../models/notice.dart';
 import '../services/firestore_service.dart';
+import '../utils/toast_utils.dart';
 import 'notice_detail_screen.dart';
 import 'dart:async'; // StreamSubscription
+import '../widgets/common/custom_loading_indicator.dart';
+import '../widgets/common/bounceable.dart';
+import '../widgets/common/jelly_button.dart'; // NEW // Toss-style Interaction
 
 class ScrapScreen extends StatefulWidget {
   const ScrapScreen({super.key});
@@ -18,7 +23,15 @@ class _ScrapScreenState extends State<ScrapScreen> {
 
   String _selectedCategory = "전체";
   // Updated category list as requested
-  final List<String> _categories = ["전체", "학사", "장학", "취업", "공모전", "학과행사", "외부행사"];
+  final List<String> _categories = [
+    "전체",
+    "학사",
+    "장학",
+    "취업",
+    "공모전",
+    "학과행사",
+    "외부행사",
+  ];
   bool _isScrolled = false;
 
   String _searchQuery = ""; // 검색어 변수 추가
@@ -27,10 +40,14 @@ class _ScrapScreenState extends State<ScrapScreen> {
   late StreamSubscription<List<Notice>> _subscription;
   List<Notice> _displayedNotices = [];
   bool _isLoading = true;
+  final FocusNode _searchFocus = FocusNode(); // FocusNode 추가
 
   @override
   void initState() {
     super.initState();
+    _searchFocus.addListener(() {
+      setState(() {}); // 포커스 변경 시 리빌드
+    });
     // 스트림 구독 시작
     _subscription = _firestoreService.getNotices().listen((allNotices) {
       _processUpdates(allNotices);
@@ -48,6 +65,7 @@ class _ScrapScreenState extends State<ScrapScreen> {
 
   @override
   void dispose() {
+    _searchFocus.dispose();
     _subscription.cancel();
     _scrollController.dispose();
     super.dispose();
@@ -58,11 +76,11 @@ class _ScrapScreenState extends State<ScrapScreen> {
     // 1. 현재 조건(스크랩+카테고리+검색어)에 맞는 새 리스트 생성
     List<Notice> newFiltered = allNotices.where((n) {
       if (!n.isScraped) return false;
-      
+
       // Category Filtering
       if (_selectedCategory != "전체") {
         // exact category match
-        if (n.category != _selectedCategory) return false; 
+        if (n.category != _selectedCategory) return false;
       }
 
       if (_searchQuery.isNotEmpty) {
@@ -155,20 +173,20 @@ class _ScrapScreenState extends State<ScrapScreen> {
 
   Color _getCategoryColor(String category) {
     switch (category) {
+      case "긴급":
+        return Colors.red[700]!;
       case "학사":
-        return const Color(0xFF90CAF9);
+        return Colors.blue[700]!;
       case "장학":
-        return const Color(0xFFFFCC80);
+        return Colors.orange[700]!;
       case "취업":
-        return const Color(0xFFA5D6A7);
+        return Colors.green[700]!;
       case "학과행사":
-        return const Color(0xFFCE93D8);
+        return Colors.purple[700]!;
       case "외부행사":
-        return const Color(0xFF9E9E9E);
+        return Colors.grey[700]!;
       case "공모전":
-        return const Color(0xFFFFEE58);
-      case "광고":
-        return const Color(0xFFB0BEC5);
+        return Colors.amber[700]!;
       default:
         return const Color(0xFF3182F6);
     }
@@ -209,37 +227,56 @@ class _ScrapScreenState extends State<ScrapScreen> {
                 // 검색 바
                 Padding(
                   padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE5E8EB)),
-                    ),
-                    child: TextField(
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value;
-                        });
-                        // 검색어 변경 시 리스트 갱신 유도
-                        _subscription.cancel();
-                        _displayedNotices.clear();
-                        _isLoading = true;
-                        _subscription = _firestoreService.getNotices().listen((
-                          allNotices,
-                        ) {
-                          _processUpdates(allNotices);
-                        });
-                      },
-                      decoration: const InputDecoration(
-                        hintText: "보관함 검색",
-                        prefixIcon: Icon(
-                          Icons.search,
-                          color: Color(0xFF8B95A1),
+                  child: Bounceable(
+                    onTap: () {
+                      HapticFeedback.lightImpact(); // 짧은 진동 (Padding 영역 터치 시)
+                      _searchFocus.requestFocus();
+                    },
+                    immediate: true, // 즉시 실행
+                    scaleFactor: 0.98,
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _searchFocus.hasFocus
+                              ? const Color(0xFF3182F6) // Brand Color
+                              : const Color(0xFFE5E8EB),
+                          width: _searchFocus.hasFocus ? 2 : 1,
                         ),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
+                      ),
+                      child: TextField(
+                        focusNode: _searchFocus,
+                        cursorColor: const Color(0xFF3182F6), // 커서 색상 변경
+                        onTap: () {
+                          HapticFeedback.lightImpact(); // 짧은 진동 (TextField 영역 터치 시)
+                        },
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value;
+                          });
+                          // 검색어 변경 시 리스트 갱신 유도
+                          _subscription.cancel();
+                          _displayedNotices.clear();
+                          _isLoading = true;
+                          _subscription = _firestoreService.getNotices().listen(
+                            (allNotices) {
+                              _processUpdates(allNotices);
+                            },
+                          );
+                        },
+                        decoration: const InputDecoration(
+                          hintText: "제목 또는 내용으로 검색해보세요",
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: Color(0xFF8B95A1),
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                         ),
                       ),
                     ),
@@ -254,30 +291,40 @@ class _ScrapScreenState extends State<ScrapScreen> {
                       final isSelected = _selectedCategory == category;
                       return Padding(
                         padding: const EdgeInsets.only(right: 8),
-                        child: FilterChip(
-                          label: Text(category),
-                          selected: isSelected,
-                          onSelected: (bool selected) {
+                        child: Bounceable(
+                          onTap: () {
+                            HapticFeedback.lightImpact(); // 짧은 진동
                             _onCategoryChanged(category);
                           },
-                          backgroundColor: Colors.white,
-                          selectedColor: const Color(0xFF3182F6),
-                          labelStyle: TextStyle(
-                            color: isSelected
-                                ? Colors.white
-                                : const Color(0xFF4E5968),
-                            fontWeight: FontWeight.bold,
-                            fontSize: 13,
-                          ),
-                          shape: RoundedRectangleBorder(
-                            borderRadius: BorderRadius.circular(20),
-                            side: BorderSide(
+                          immediate: true, // 즉시 실행
+                          borderRadius: BorderRadius.circular(20),
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 12,
+                              vertical: 8,
+                            ),
+                            decoration: BoxDecoration(
                               color: isSelected
-                                  ? Colors.transparent
-                                  : const Color(0xFFE5E8EB),
+                                  ? const Color(0xFF3182F6)
+                                  : Colors.white,
+                              borderRadius: BorderRadius.circular(20),
+                              border: Border.all(
+                                color: isSelected
+                                    ? Colors.transparent
+                                    : const Color(0xFFE5E8EB),
+                              ),
+                            ),
+                            child: Text(
+                              category,
+                              style: TextStyle(
+                                color: isSelected
+                                    ? Colors.white
+                                    : const Color(0xFF4E5968),
+                                fontWeight: FontWeight.bold,
+                                fontSize: 13,
+                              ),
                             ),
                           ),
-                          showCheckmark: false,
                         ),
                       );
                     }).toList(),
@@ -290,7 +337,7 @@ class _ScrapScreenState extends State<ScrapScreen> {
           // ★ 리스트 (AnimatedList)
           Expanded(
             child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: CustomLoadingIndicator())
                 : _displayedNotices.isEmpty
                 ? _buildEmptyView()
                 : AnimatedList(
@@ -349,7 +396,7 @@ class _ScrapScreenState extends State<ScrapScreen> {
         alignment: Alignment.center,
         child: Padding(
           padding: const EdgeInsets.only(bottom: 12),
-          child: GestureDetector(
+          child: Bounceable(
             onTap: () {
               Navigator.push(
                 context,
@@ -358,6 +405,7 @@ class _ScrapScreenState extends State<ScrapScreen> {
                 ),
               );
             },
+            borderRadius: BorderRadius.circular(20),
             child: Container(
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
@@ -397,34 +445,25 @@ class _ScrapScreenState extends State<ScrapScreen> {
                         ),
                       ),
                       const Spacer(),
-                      GestureDetector(
+                      JellyButton(
+                        isActive: notice.isScraped,
+                        activeIcon: Icons.bookmark_rounded,
+                        inactiveIcon: Icons.bookmark_outline_rounded,
+                        activeColor: const Color(0xFFFFD180),
+                        inactiveColor: const Color(0xFFD1D6DB),
+                        size: 24,
                         onTap: () {
                           _firestoreService.toggleNoticeScrap(
                             notice.id,
                             notice.isScraped,
                           );
-                          ScaffoldMessenger.of(context).clearSnackBars();
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(
-                              content: Text(
-                                !notice.isScraped
-                                    ? "스크랩 보관함에 저장되었어요."
-                                    : "스크랩이 해제되었어요.",
-                              ),
-                              duration: const Duration(milliseconds: 1000),
-                              behavior: SnackBarBehavior.floating,
-                            ),
+                          ToastUtils.show(
+                            context,
+                            !notice.isScraped
+                                ? "스크랩 보관함에 저장되었어요."
+                                : "스크랩이 해제되었어요.",
                           );
                         },
-                        child: Icon(
-                          notice.isScraped
-                              ? Icons.bookmark_rounded
-                              : Icons.bookmark_outline_rounded,
-                          color: notice.isScraped
-                              ? const Color(0xFFFFD180)
-                              : const Color(0xFFD1D6DB),
-                          size: 24,
-                        ),
                       ),
                     ],
                   ),

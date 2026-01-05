@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/notice.dart';
 import '../../screens/notice_detail_screen.dart';
 import '../../screens/notice_list_screen.dart';
+import '../common/bounceable.dart'; // Toss-style Interaction
 
 class UrgentNoticeWidget extends StatefulWidget {
   final bool forceShow;
@@ -46,17 +47,21 @@ class _UrgentNoticeWidgetState extends State<UrgentNoticeWidget> {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('notices')
-          .orderBy('date', descending: true)
-          .limit(100)
+          .where('is_urgent', isEqualTo: true)
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const SizedBox.shrink();
 
         final now = DateTime.now();
-        final urgentNotices = snapshot.data!.docs
+        List<Notice> urgentNotices = snapshot.data!.docs
             .map((doc) => Notice.fromFirestore(doc, []))
-            .where((n) {
-              if (n.isUrgent != true) return false;
+            .toList();
+        
+        // Sort by date descending
+        urgentNotices.sort((a, b) => b.date.compareTo(a.date));
+
+        // Filter by date (within 14 days)
+        urgentNotices = urgentNotices.where((n) {
               try {
                 String dateStr = n.date
                     .replaceAll('.', '-')
@@ -75,9 +80,13 @@ class _UrgentNoticeWidgetState extends State<UrgentNoticeWidget> {
                 }
                 if (noticeDate != null) {
                   final diff = now.difference(noticeDate).inDays;
-                  return diff <= 14;
+                  // Allow today (0) and up to 14 days ago. 
+                  // Also allow future dates (negative diff) just in case.
+                  return diff <= 14; 
                 }
               } catch (e) {}
+              // If date parsing fails, show it anyway? No, safer to hide or show? 
+              // Original logic returned false. Keep it.
               return false;
             })
             .toList();
@@ -137,7 +146,7 @@ class _UrgentNoticeWidgetState extends State<UrgentNoticeWidget> {
           );
         }
 
-        return Container(
+        return Container( 
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
             color: Colors.white,
@@ -240,7 +249,7 @@ class _UrgentNoticeWidgetState extends State<UrgentNoticeWidget> {
   }
 
   Widget _buildUrgentContent(BuildContext context, Notice notice) {
-    return GestureDetector(
+    return Bounceable(
       onTap: () {
         Navigator.push(
           context,

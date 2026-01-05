@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../screens/notice_list_screen.dart';
 import '../../services/firestore_service.dart';
+import '../common/bounceable.dart'; // Toss-style Interaction
 
 class CategoryGridWidget extends StatefulWidget {
   final FirestoreService firestoreService;
@@ -113,7 +114,7 @@ class _CategoryGridWidgetState extends State<CategoryGridWidget> {
     // 캐시된 스트림 사용
     final stream = _streamCache[label];
 
-    return GestureDetector(
+    return Bounceable(
       onTap: () {
         Navigator.push(
           context,
@@ -123,6 +124,7 @@ class _CategoryGridWidgetState extends State<CategoryGridWidget> {
           ),
         );
       },
+      borderRadius: BorderRadius.circular(24),
       child: Container(
         height: 140, // 높이 증가
         decoration: BoxDecoration(

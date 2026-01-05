@@ -2,8 +2,14 @@ import 'package:flutter/material.dart';
 import '../models/notice.dart';
 import '../services/firestore_service.dart';
 import 'notice_detail_screen.dart';
+import '../widgets/common/custom_loading_indicator.dart';
+import '../widgets/common/bounceable.dart'; // Toss-style Interaction
+import '../widgets/common/custom_dialog.dart';
+import '../widgets/common/jelly_button.dart';
 import 'package:flutter_slidable/flutter_slidable.dart'; // NEW
+import '../utils/toast_utils.dart';
 import 'admin/write_notice_screen.dart'; // NEW
+import 'package:flutter/services.dart'; // Haptic Feedback
 
 class NoticeListScreen extends StatefulWidget {
   final String title;
@@ -25,11 +31,15 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
   bool _isScrolled = false;
   late Stream<List<Notice>> _noticeStream;
   String _searchQuery = "";
+  final FocusNode _searchFocus = FocusNode(); // FocusNode 추가
   String _userRole = ''; // NEW
 
   @override
   void initState() {
     super.initState();
+    _searchFocus.addListener(() {
+      setState(() {}); // 포커스 변경 시 리빌드
+    });
     _noticeStream = _firestoreService.getNotices(); // 스트림 초기화
 
     // 방문 기록 업데이트 (배지 초기화)
@@ -55,6 +65,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
 
   @override
   void dispose() {
+    _searchFocus.dispose();
     _scrollController.dispose();
     super.dispose();
   }
@@ -102,17 +113,11 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                       widget.title,
                       !isEnabled,
                     );
-                    ScaffoldMessenger.of(context).clearSnackBars();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          !isEnabled
-                              ? "${widget.title} 알림이 켜졌어요."
-                              : "${widget.title} 알림이 꺼졌어요.",
-                        ),
-                        duration: const Duration(milliseconds: 1000),
-                        behavior: SnackBarBehavior.floating,
-                      ),
+                    ToastUtils.show(
+                      context,
+                      !isEnabled
+                          ? "${widget.title} 알림이 켜졌어요."
+                          : "${widget.title} 알림이 꺼졌어요.",
                     );
                   },
                   icon: Icon(
@@ -153,32 +158,48 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
             color: const Color(0xFFF2F4F6),
             child: Row(
               children: [
-                // 검색 타입 선택 (간소화)
-                // 공간 문제로 드롭다운 대신 아이콘이나 탭을 쓸 수 있지만,
-                // 여기선 TextField 앞에 접두어로 둠.
                 Expanded(
-                  child: Container(
-                    decoration: BoxDecoration(
-                      color: Colors.white,
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: const Color(0xFFE5E8EB)),
-                    ),
-                    child: TextField(
-                      onChanged: (value) {
-                        setState(() {
-                          _searchQuery = value;
-                        });
-                      },
-                      decoration: const InputDecoration(
-                        hintText: "제목 또는 내용으로 검색하세요.",
-                        prefixIcon: Icon(
-                          Icons.search,
-                          color: Color(0xFF8B95A1),
+                  child: Bounceable(
+                    onTap: () {
+                      HapticFeedback.lightImpact(); // 짧은 진동
+                      _searchFocus.requestFocus(); // 터치 시 포커스 요청
+                    },
+                    immediate: true, // 즉시 실행
+                    scaleFactor: 0.98, // 미세한 반응
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(12),
+                        border: Border.all(
+                          color: _searchFocus.hasFocus
+                              ? const Color(0xFF3182F6) // Brand Color
+                              : const Color(0xFFE5E8EB),
+                          width: _searchFocus.hasFocus ? 2 : 1, // 두께 강조
                         ),
-                        border: InputBorder.none,
-                        contentPadding: EdgeInsets.symmetric(
-                          horizontal: 16,
-                          vertical: 12,
+                      ),
+                      child: TextField(
+                        focusNode: _searchFocus, // FocusNode 연결
+                        cursorColor: const Color(0xFF3182F6), // 커서 색상 변경
+                        onTap: () {
+                          HapticFeedback.lightImpact(); // 짧은 진동
+                        },
+                        onChanged: (value) {
+                          setState(() {
+                            _searchQuery = value;
+                          });
+                        },
+                        decoration: const InputDecoration(
+                          hintText: "제목 또는 내용으로 검색해보세요",
+                          prefixIcon: Icon(
+                            Icons.search,
+                            color: Color(0xFF8B95A1),
+                          ),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(
+                            horizontal: 16,
+                            vertical: 12,
+                          ),
                         ),
                       ),
                     ),
@@ -194,7 +215,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
               stream: _noticeStream,
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: CustomLoadingIndicator());
                 }
                 if (snapshot.hasError) {
                   return Center(child: Text("에러 발생: ${snapshot.error}"));
@@ -273,28 +294,26 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
   Color _getCategoryColor(String category) {
     switch (category) {
       case "긴급":
-        return const Color(0xFFFF8A80);
+        return Colors.red[700]!;
       case "학사":
-        return const Color(0xFF90CAF9);
+        return Colors.blue[700]!;
       case "장학":
-        return const Color(0xFFFFCC80);
+        return Colors.orange[700]!;
       case "취업":
-        return const Color(0xFFA5D6A7);
+        return Colors.green[700]!;
       case "학과행사":
-        return const Color(0xFFCE93D8);
+        return Colors.purple[700]!;
       case "외부행사":
-        return const Color(0xFF9E9E9E);
+        return Colors.grey[700]!;
       case "공모전":
-        return const Color(0xFFFFEE58);
-      case "광고":
-        return const Color(0xFFB0BEC5);
+        return Colors.amber[700]!;
       default:
         return const Color(0xFF3182F6);
     }
   }
 
   Widget _buildListItem(Notice notice) {
-    final card = GestureDetector(
+    final card = Bounceable(
       onTap: () {
         Navigator.push(
           context,
@@ -303,6 +322,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
           ),
         );
       },
+      borderRadius: BorderRadius.circular(20),
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
@@ -323,34 +343,22 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                   ),
                 ),
                 const Spacer(),
-                GestureDetector(
+                JellyButton(
+                  isActive: notice.isScraped,
+                  activeIcon: Icons.bookmark_rounded,
+                  inactiveIcon: Icons.bookmark_border_rounded,
+                  activeColor: const Color(0xFFFFD180),
+                  inactiveColor: const Color(0xFFD1D6DB),
                   onTap: () {
                     _firestoreService.toggleNoticeScrap(
                       notice.id,
                       notice.isScraped,
                     );
-                    ScaffoldMessenger.of(context).clearSnackBars();
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      SnackBar(
-                        content: Text(
-                          !notice.isScraped
-                              ? "스크랩 보관함에 저장되었어요."
-                              : "스크랩이 해제되었어요.",
-                        ),
-                        duration: const Duration(milliseconds: 1000),
-                        behavior: SnackBarBehavior.floating,
-                      ),
+                    ToastUtils.show(
+                      context,
+                      !notice.isScraped ? "스크랩 보관함에 저장되었어요." : "스크랩이 해제되었어요.",
                     );
                   },
-                  child: Icon(
-                    notice.isScraped
-                        ? Icons.bookmark_rounded
-                        : Icons.bookmark_border_rounded,
-                    size: 24,
-                    color: notice.isScraped
-                        ? const Color(0xFFFFD180)
-                        : const Color(0xFFD1D6DB),
-                  ),
                 ),
               ],
             ),
@@ -454,22 +462,14 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
               bool confirm =
                   await showDialog(
                     context: context,
-                    builder: (context) => AlertDialog(
-                      title: const Text("공지 삭제"),
-                      content: const Text("정말로 이 공지를 삭제하시겠습니까?"),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, false),
-                          child: const Text("취소"),
-                        ),
-                        TextButton(
-                          onPressed: () => Navigator.pop(context, true),
-                          child: const Text(
-                            "삭제",
-                            style: TextStyle(color: Colors.red),
-                          ),
-                        ),
-                      ],
+                    builder: (context) => CustomDialog(
+                      title: "공지 삭제",
+                      contentText: "정말로 이 공지를 삭제하시겠습니까?",
+                      cancelText: "취소",
+                      confirmText: "삭제",
+                      isDestructive: true,
+                      onConfirm: () => Navigator.pop(context, true),
+                      onCancel: () => Navigator.pop(context, false),
                     ),
                   ) ??
                   false;
@@ -477,9 +477,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
               if (confirm) {
                 await _firestoreService.deleteNotice(notice.id);
                 if (mounted) {
-                  ScaffoldMessenger.of(
-                    context,
-                  ).showSnackBar(const SnackBar(content: Text("삭제되었습니다.")));
+                  ToastUtils.show(context, "삭제되었습니다.");
                 }
               }
             },
