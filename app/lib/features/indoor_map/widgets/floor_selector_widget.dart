@@ -1,8 +1,9 @@
 import 'package:flutter/material.dart';
+import '../../../widgets/common/bounceable.dart';
 
 class FloorSelectorWidget extends StatelessWidget {
   final int currentFloor;
-  final Function(int) onFloorChanged;
+  final ValueChanged<int> onFloorChanged;
 
   const FloorSelectorWidget({
     super.key,
@@ -13,50 +14,54 @@ class FloorSelectorWidget extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.circular(30),
-        boxShadow: const [
+        boxShadow: [
           BoxShadow(
-            color: Colors.black12,
+            color: Colors.black.withOpacity(0.1),
             blurRadius: 10,
-            offset: Offset(0, 2),
+            offset: const Offset(0, 4),
           ),
         ],
       ),
-      child: Column(
+      child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          _buildFloorButton(7),
-          _buildFloorButton(6),
-          _buildFloorButton(5),
-          _buildFloorButton(4),
+          _buildFloorButton(context, 4),
+          _buildFloorButton(context, 5),
+          _buildFloorButton(context, 6),
+          _buildFloorButton(context, 7),
         ],
       ),
     );
   }
 
-  Widget _buildFloorButton(int floor) {
-    final isSelected = floor == currentFloor;
+  Widget _buildFloorButton(BuildContext context, int floor) {
+    final bool isSelected = currentFloor == floor;
 
-    return Container(
-      margin: const EdgeInsets.all(4),
-      child: Material(
-        color: isSelected ? const Color(0xFF3182F6) : Colors.white,
-        borderRadius: BorderRadius.circular(25),
-        child: InkWell(
-          borderRadius: BorderRadius.circular(25),
-          onTap: () => onFloorChanged(floor),
-          child: Container(
-            width: 50,
-            height: 50,
-            alignment: Alignment.center,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 4.0),
+      child: Bounceable(
+        onTap: () => onFloorChanged(floor),
+        borderRadius: BorderRadius.circular(20),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeInOut,
+          width: 44,
+          height: 44,
+          decoration: BoxDecoration(
+            color: isSelected ? const Color(0xFF3182F6) : Colors.transparent,
+            shape: BoxShape.circle,
+          ),
+          child: Center(
             child: Text(
               '${floor}F',
               style: TextStyle(
-                color: isSelected ? Colors.white : Colors.black87,
                 fontWeight: FontWeight.bold,
                 fontSize: 16,
+                color: isSelected ? Colors.white : const Color(0xFF4E5968),
               ),
             ),
           ),

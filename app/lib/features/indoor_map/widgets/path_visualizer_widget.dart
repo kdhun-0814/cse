@@ -19,11 +19,11 @@ class PathVisualizerWidget {
           <div slot="hotspot-path-$i"
             data-position="${point['x']}m ${point['y']}m ${point['z']}m"
             data-normal="0m 1m 0m"
-            style="width: 15px; height: 15px; 
+            style="width: 10px; height: 10px; 
                    border-radius: 50%; 
-                   background: rgba(96, 165, 250, 0.95); 
+                   background: rgba(255, 204, 0, 0.95); 
                    pointer-events: none;
-                   box-shadow: 0 0.15m 0.5m rgba(96, 165, 250, 0.4);">
+                   box-shadow: 0 0.15m 0.5m rgba(255, 204, 0, 0.4);">
           </div>
         ''');
       }

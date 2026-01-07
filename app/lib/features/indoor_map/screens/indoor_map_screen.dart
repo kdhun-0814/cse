@@ -39,6 +39,7 @@ class _IndoorMapScreenState extends State<IndoorMapScreen> {
   // UI 상태
   late String _cameraOrbit;
   late String _cameraTarget;
+  bool _isFloorSwitching = false;
 
   @override
   void initState() {
@@ -108,8 +109,14 @@ class _IndoorMapScreenState extends State<IndoorMapScreen> {
   }
 
   // 층만 변경 (데이터는 이미 로드됨)
-  Future<void> _switchFloor(int floor) async {
+  Future<void> _switchFloor(int floor, {VoidCallback? onBeforeFadeIn}) async {
     if (floor == _currentConfig.floor) return;
+
+    // 1. 전환 시작 (페이드 아웃)
+    setState(() {
+      _isFloorSwitching = true;
+    });
+    await Future.delayed(const Duration(milliseconds: 300));
 
     final newConfig = FloorConfigs.getConfig(floor);
     // 캐시된 데이터 가져오기 (이미 로드됨)
@@ -131,14 +138,47 @@ class _IndoorMapScreenState extends State<IndoorMapScreen> {
       _selectedRoom = null;
       _currentPath = [];
     });
+
+    // 2. 추가 작업 (예: 검색 결과로 이동하여 카메라 설정)
+    if (onBeforeFadeIn != null) {
+      onBeforeFadeIn();
+    }
+
+    // 3. 모델 로딩 시간 확보 (깜빡임 방지)
+    await Future.delayed(const Duration(milliseconds: 500));
+
+    // 4. 전환 종료 (페이드 인)
+    setState(() {
+      _isFloorSwitching = false;
+    });
   }
 
   void _onRoomSelected(RoomSearchResult result) async {
     // 1. 다른 층이면 해당 층으로 먼저 이동
     if (result.floor != _currentConfig.floor) {
-      await _switchFloor(result.floor);
-    }
+      await _switchFloor(
+        result.floor,
+        onBeforeFadeIn: () => _updateRoomSelection(result),
+      );
+    } else {
+      // 2. 같은 층이어도 부드러운 전환 효과 적용
+      setState(() {
+        _isFloorSwitching = true;
+      });
+      await Future.delayed(const Duration(milliseconds: 300));
 
+      if (!mounted) return;
+      _updateRoomSelection(result);
+
+      await Future.delayed(const Duration(milliseconds: 300));
+      if (!mounted) return;
+      setState(() {
+        _isFloorSwitching = false;
+      });
+    }
+  }
+
+  void _updateRoomSelection(RoomSearchResult result) {
     if (_startNode == null || _currentFloorData == null) return;
 
     setState(() {
@@ -150,10 +190,6 @@ class _IndoorMapScreenState extends State<IndoorMapScreen> {
         result.node,
         _currentFloorData!,
       );
-
-      // 3. 카메라 이동
-      _cameraTarget = '${result.node.x}m 0.5m ${-result.node.y}m';
-      _cameraOrbit = '0deg 75deg 200m';
     });
   }
 
@@ -162,7 +198,7 @@ class _IndoorMapScreenState extends State<IndoorMapScreen> {
       _selectedRoom = null;
       _currentPath = [];
       _cameraTarget = _currentConfig.initialCameraTarget;
-      _cameraOrbit = '0deg 75deg 250m';
+      _cameraOrbit = _currentConfig.initialCameraOrbit;
     });
   }
 
@@ -230,7 +266,7 @@ class _IndoorMapScreenState extends State<IndoorMapScreen> {
         // Layer 1: 3D Model Viewer
         ModelViewer(
           key: ValueKey(
-            'map-${_currentConfig.floor}-${_currentPath.length}',
+            'map-${_currentConfig.floor}-${_selectedRoom?.name ?? "none"}-${_currentPath.length}',
           ), // Key 변경으로 갱신 유도
           backgroundColor: const Color(0xFFF0F0F0),
           src: _currentConfig.glbPath,
@@ -243,6 +279,19 @@ class _IndoorMapScreenState extends State<IndoorMapScreen> {
           innerModelViewerHtml: _currentPath.isNotEmpty
               ? PathVisualizerWidget.buildPathHotspots(_currentPath)
               : '',
+        ),
+
+        // Layer 1.5: Transition Overlay (부드러운 전환 효과)
+        IgnorePointer(
+          ignoring: !_isFloorSwitching,
+          child: AnimatedOpacity(
+            opacity: _isFloorSwitching ? 1.0 : 0.0,
+            duration: const Duration(milliseconds: 300),
+            child: Container(
+              color: const Color(0xFFF2F4F6),
+              child: const Center(child: CustomLoadingIndicator()),
+            ),
+          ),
         ),
 
         // Layer 2: Search Bar (Global Search - Centered)
@@ -258,17 +307,17 @@ class _IndoorMapScreenState extends State<IndoorMapScreen> {
         ),
 
         // Layer 3: Floor Selector
-        // Layer 3: Floor Selector
-        Align(
-          alignment: Alignment.centerRight,
-          child: Padding(
-            padding: const EdgeInsets.only(right: 16),
-            child: FloorSelectorWidget(
-              currentFloor: _currentConfig.floor,
-              onFloorChanged: _onFloorTap,
+        if (_selectedRoom == null) // ★ 검색 결과가 없을 때만 층 선택 위젯 표시
+          Align(
+            alignment: Alignment.bottomCenter,
+            child: Padding(
+              padding: const EdgeInsets.only(bottom: 32),
+              child: FloorSelectorWidget(
+                currentFloor: _currentConfig.floor,
+                onFloorChanged: _onFloorTap,
+              ),
             ),
           ),
-        ),
 
         // Bottom Info Panel
         if (_selectedRoom != null)
@@ -325,6 +374,10 @@ class _IndoorMapScreenState extends State<IndoorMapScreen> {
                 ),
               ],
             ),
+          ),
+          IconButton(
+            onPressed: _onClearSearch,
+            icon: const Icon(Icons.close, color: Colors.grey),
           ),
         ],
       ),

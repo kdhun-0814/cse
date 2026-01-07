@@ -6,8 +6,8 @@ class FloorConfigs {
     floorName: '4층',
     glbPath: 'assets/3d/4floor.glb',
     jsonPath: 'assets/json/floor_4.json',
-    initialCameraOrbit: '0deg 90deg 300m',
-    initialCameraTarget: '45m 0m -65m', // EV 위치 중심
+    initialCameraOrbit: '0deg 30deg 1250m',
+    initialCameraTarget: '0m 0m 0m', // 중심 좌표 (0,0,0)
     defaultZoom: 250,
   );
 
@@ -16,8 +16,8 @@ class FloorConfigs {
     floorName: '5층',
     glbPath: 'assets/3d/5floor.glb',
     jsonPath: 'assets/json/floor_5.json',
-    initialCameraOrbit: '0deg 90deg 300m',
-    initialCameraTarget: '45m 0m -65m',
+    initialCameraOrbit: '0deg 30deg 1200m',
+    initialCameraTarget: '-25m 0m 0m',
     defaultZoom: 250,
   );
 
@@ -26,8 +26,8 @@ class FloorConfigs {
     floorName: '6층',
     glbPath: 'assets/3d/6floor.glb',
     jsonPath: 'assets/json/floor_6.json',
-    initialCameraOrbit: '0deg 90deg 300m',
-    initialCameraTarget: '45m 0m -65m',
+    initialCameraOrbit: '0deg 30deg 1200m',
+    initialCameraTarget: '-25m 0m 0m',
     defaultZoom: 250,
   );
 
@@ -36,8 +36,8 @@ class FloorConfigs {
     floorName: '7층',
     glbPath: 'assets/3d/7floor.glb',
     jsonPath: 'assets/json/floor_7.json',
-    initialCameraOrbit: '0deg 90deg 300m',
-    initialCameraTarget: '45m 0m -65m',
+    initialCameraOrbit: '0deg 30deg 1200m',
+    initialCameraTarget: '-25m 0m 0m',
     defaultZoom: 250,
   );
 
