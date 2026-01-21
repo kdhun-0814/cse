@@ -67,6 +67,29 @@ def check_deadline_urgency(title):
     return False
 
 # ==========================================
+# 5. 데일리 조회수 초기화 (자정 실행용)
+# ==========================================
+def reset_daily_views():
+    print("🌙 자정 작업: 일일 조회수(views_today) 초기화 시작...")
+    batch = db.batch()
+    count = 0
+    
+    # views_today가 0보다 큰 것만 가져와서 0으로 만듦
+    docs = db.collection('notices').where('views_today', '>', 0).stream()
+    
+    for doc in docs:
+        batch.update(doc.reference, {'views_today': 0})
+        count += 1
+        if count % 400 == 0: 
+            batch.commit()
+            batch = db.batch()
+            
+    if count > 0:
+        batch.commit()
+        
+    print(f"✅ 총 {count}개 공지의 일일 조회수 초기화 완료.")
+
+# ==========================================
 # 3. 상세 페이지 크롤링 (Selenium 사용)
 # ==========================================
 def scrape_detail_with_selenium(driver, url):
@@ -234,6 +257,7 @@ def crawl_gnu_cse(mode='all', headless=True, page_limit=None):
     time.sleep(2) 
 
     total_count = 0
+    total_new_items = 0
     page = 1
     stop_crawling = False
 
@@ -349,38 +373,12 @@ def crawl_gnu_cse(mode='all', headless=True, page_limit=None):
             }
             
             # views_today 필드가 없으면 0으로 초기화 (merge=True라 기존 값 유지됨)
-            # 하지만 덮어쓰기 위해 set(merge=True) 사용중
-            # set을 쓰면 없는 필드는 보존되나? merge=True면 보존됨.
-            # 단, 새 문서일 경우 views_today가 없을 수 있음.
-            
             if not doc.exists:
                 save_data['views_today'] = 0
             
             doc_ref.set(save_data, merge=True)
             new_in_page += 1
-
-# ==========================================
-# 5. 데일리 조회수 초기화 (자정 실행용)
-# ==========================================
-def reset_daily_views():
-    print("🌙 자정 작업: 일일 조회수(views_today) 초기화 시작...")
-    batch = db.batch()
-    count = 0
-    
-    # views_today가 0보다 큰 것만 가져와서 0으로 만듦
-    docs = db.collection('notices').where('views_today', '>', 0).stream()
-    
-    for doc in docs:
-        batch.update(doc.reference, {'views_today': 0})
-        count += 1
-        if count % 400 == 0: 
-            batch.commit()
-            batch = db.batch()
-            
-    if count > 0:
-        batch.commit()
-        
-    print(f"✅ 총 {count}개 공지의 일일 조회수 초기화 완료.")
+            total_new_items += 1
             
         print(f"   -> {new_in_page}개 처리 완료")
         
@@ -396,7 +394,8 @@ def reset_daily_views():
             break
 
     driver.quit()
-    print(f"\n✅ 모든 작업 완료!")
+    print(f"\n✅ 모든 작업 완료! 총 {total_new_items}개의 새 공지사항을 수집했습니다.")
+    return total_new_items
 
 if __name__ == "__main__":
     # [GitHub Actions / Cron 모드]
