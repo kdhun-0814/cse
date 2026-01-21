@@ -4,6 +4,8 @@ import 'firebase_options.dart'; // 자동 생성된 파일
 import 'package:intl/date_symbol_data_local.dart';
 import 'auth_gate.dart'; // 생성할 파일
 
+import 'package:flutter_localizations/flutter_localizations.dart'; // NEW
+
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await initializeDateFormatting();
@@ -28,6 +30,12 @@ class MyApp extends StatelessWidget {
         primaryColor: const Color(0xFF3182F6),
         useMaterial3: true,
       ),
+      localizationsDelegates: const [
+        GlobalMaterialLocalizations.delegate,
+        GlobalWidgetsLocalizations.delegate,
+        GlobalCupertinoLocalizations.delegate,
+      ],
+      supportedLocales: const [Locale('ko', 'KR')],
       home: const AuthGate(), // 로그인 세션
     );
   }

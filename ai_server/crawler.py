@@ -134,7 +134,6 @@ def scrape_detail_with_selenium(driver, url):
             # 작성자
             author_tag = soup.find(string=re.compile("작성자"))
             if author_tag:
-                 # 부모나 형제 노드에서 값 찾기
                  author_th = author_tag.find_parent('th')
                  if author_th:
                      author_td = author_th.find_next_sibling('td')
@@ -152,7 +151,7 @@ def scrape_detail_with_selenium(driver, url):
                              metadata['views'] = int(re.sub(r'[^0-9]', '', views_td.get_text()))
                          except: pass
             
-            # 작성일 (디테일 페이지에 있다면 가져오기)
+            # 작성일
             date_tag = soup.find(string=re.compile("등록일|작성일"))
             if date_tag:
                  date_th = date_tag.find_parent('th')

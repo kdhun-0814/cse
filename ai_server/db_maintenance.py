@@ -55,6 +55,53 @@ def delete_old_notices(days_to_keep=365):
     
     print(f"✅ 총 {count}개의 오래된 공지가 삭제되었습니다.")
 
+def delete_old_menus(days_to_keep=7):
+    """
+    cafeteria_menus 컬렉션에서 days_to_keep일 지난 데이터 삭제
+    """
+    print(f"🧹 급식 데이터 정리: 최근 {days_to_keep}일만 유지")
+    cutoff_date = datetime.now() - timedelta(days=days_to_keep)
+    cutoff_str = cutoff_date.strftime("%Y-%m-%d")
+    
+    docs = db.collection('cafeteria_menus').where('date', '<', cutoff_str).stream()
+    
+    count = 0
+    batch = db.batch()
+    
+    for doc in docs:
+        batch.delete(doc.reference)
+        count += 1
+        if count % 400 == 0:
+            batch.commit()
+            batch = db.batch()
+            
+    if count > 0:
+        batch.commit()
+        
+    print(f"   - Deleted {count} old menu documents (older than {cutoff_str}).")
+
+def reset_daily_views():
+    """
+    notices 컬렉션의 views_today 필드를 0으로 초기화
+    """
+    print("🌙 자정 작업: 일일 조회수(views_today) 초기화 시작...")
+    batch = db.batch()
+    count = 0
+    
+    docs = db.collection('notices').where('views_today', '>', 0).stream()
+    
+    for doc in docs:
+        batch.update(doc.reference, {'views_today': 0})
+        count += 1
+        if count % 400 == 0: 
+            batch.commit()
+            batch = db.batch()
+            
+    if count > 0:
+        batch.commit()
+        
+    print(f"✅ 총 {count}개 공지의 일일 조회수 초기화 완료.")
+
 def delete_all_notices():
     """
     모든 공지사항 데이터를 삭제합니다 (초기화용)
@@ -80,8 +127,14 @@ def delete_all_notices():
     print(f"✅ 전체 데이터 삭제 완료: {count}개")
 
 if __name__ == "__main__":
-    # 3년(1095일) 지난 공지 삭제
+    # 1. 3년 지난 공지 삭제
     delete_old_notices(days_to_keep=1095)
+
+    # 2. 오래된 식단 삭제 (1주일)
+    delete_old_menus(days_to_keep=7)
+
+    # 3. 일일 조회수 초기화 (매일 자정 실행 가정)
+    reset_daily_views()
     
-    # [주의] 전체 삭제 (필요시에만 주석 해제 후 사용)
+    # [주의] 전체 삭제
     # delete_all_notices()

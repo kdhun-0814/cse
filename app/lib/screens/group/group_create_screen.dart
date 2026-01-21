@@ -172,11 +172,80 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                     onChanged: (val) => setState(() => _maxMembers = val),
                   ),
                 ),
-                Text(
-                  _maxMembers >= 21 ? "제한 없음" : "${_maxMembers.toInt()}명",
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,   
+                InkWell(
+                  onTap: () async {
+                    final TextEditingController controller =
+                        TextEditingController.fromValue(
+                          TextEditingValue(
+                            text: _maxMembers >= 21
+                                ? ""
+                                : _maxMembers.toInt().toString(),
+                            selection: TextSelection.collapsed(
+                              offset: _maxMembers >= 21
+                                  ? 0
+                                  : _maxMembers.toInt().toString().length,
+                            ),
+                          ),
+                        );
+
+                    await showDialog(
+                      context: context,
+                      builder: (context) {
+                        return AlertDialog(
+                          title: const Text("인원 수 직접 입력"),
+                          content: TextField(
+                            controller: controller,
+                            keyboardType: TextInputType.number,
+                            autofocus: true,
+                            decoration: const InputDecoration(
+                              hintText: "숫자만 입력 (21 이상은 제한없음)",
+                              suffixText: "명",
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text("취소"),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                if (controller.text.isNotEmpty) {
+                                  double? val = double.tryParse(
+                                    controller.text,
+                                  );
+                                  if (val != null) {
+                                    if (val < 1) val = 1;
+                                    if (val > 21) val = 21; // Slider max에 맞춤
+                                    setState(() => _maxMembers = val!);
+                                  }
+                                }
+                                Navigator.pop(context);
+                              },
+                              child: const Text("확인"),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF2F4F6),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _maxMembers >= 21 ? "제한 없음" : "${_maxMembers.toInt()}명",
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF333D4B),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -240,7 +309,9 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFFE8F3FF),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF3182F6).withOpacity(0.3)),
+                border: Border.all(
+                  color: const Color(0xFF3182F6).withOpacity(0.3),
+                ),
               ),
               child: Row(
                 children: [

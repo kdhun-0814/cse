@@ -11,12 +11,14 @@ import '../widgets/home/urgent_notice_widget.dart';
 import '../widgets/home/important_notice_widget.dart'; // NEW
 import '../widgets/home/hot_notice_widget.dart';
 import '../widgets/home/notice_search_widget.dart'; // NEW
+import '../widgets/home/cafeteria_widget.dart'; // NEW
 import '../widgets/home/category_grid_widget.dart';
 import '../models/home_widget_config.dart';
 import 'widget_management_screen.dart';
 import 'admin/write_notice_screen.dart'; // NEW
 import 'admin/admin_notice_management_screen.dart'; // NEW
 import 'calendar_screen.dart';
+import 'my_info_screen.dart'; // NEW
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -245,13 +247,6 @@ class _HomeScreenState extends State<HomeScreen>
         actions: [
           IconButton(
             icon: const Icon(
-              Icons.notifications_none_rounded,
-              color: Color(0xFF4E5968),
-            ),
-            onPressed: () {},
-          ),
-          IconButton(
-            icon: const Icon(
               Icons.dashboard_customize_rounded,
               color: Color(0xFF4E5968),
             ),
@@ -385,6 +380,8 @@ class _HomeScreenState extends State<HomeScreen>
         return const NoticeSearchWidget();
       case 'important_notice':
         return ImportantNoticeWidget(forceShow: false);
+      case 'cafeteria': // NEW
+        return const CafeteriaWidget(forceShow: false);
       case 'calendar':
         return _buildTodaySchedule();
       case 'categories':
@@ -485,6 +482,9 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           _buildDrawerItem(Icons.person_outline_rounded, '내 정보 관리', () {
             // 내 정보 관리 페이지로 이동
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const MyInfoScreen()),
+            );
           }),
           // 홈 위젯 관리 메뉴 제거 (왼쪽 상단으로 이동)
           // 관리자 메뉴
