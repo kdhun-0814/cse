@@ -49,6 +49,7 @@ dependencies:
   model_viewer_plus: ^1.7.0
   flutter_localizations:
     sdk: flutter
+  animate_do: ^4.2.0
 
 dev_dependencies:
   flutter_test:

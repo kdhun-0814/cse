@@ -1,8 +1,11 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:animate_do/animate_do.dart'; // NEW
 import 'package:intl/intl.dart';
 import '../../services/firestore_service.dart';
 
 class GroupCreateScreen extends StatefulWidget {
+  // ... (rest of class)
+
   // ★ 추가: 생성이 완료되면 호출할 콜백 함수
   final VoidCallback? onGroupCreated;
 
@@ -360,34 +363,38 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
 
           const SizedBox(height: 40),
 
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _createGroup,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3182F6),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+          ElasticIn(
+            // Toss-style bounce
+            delay: const Duration(milliseconds: 300),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _createGroup,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3182F6),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        "모집 만들기",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
+                      ),
               ),
-              child: _isLoading
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Text(
-                      "모집 만들기",
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
-                      ),
-                    ),
             ),
           ),
           const SizedBox(height: 40),
