@@ -80,8 +80,8 @@ def delete_all_notices():
     print(f"✅ 전체 데이터 삭제 완료: {count}개")
 
 if __name__ == "__main__":
-    # 예: 1년(365일) 지난 것 삭제
-    # delete_old_notices(days_to_keep=365)
+    # 3년(1095일) 지난 공지 삭제
+    delete_old_notices(days_to_keep=1095)
     
-    # [주의] 전체 삭제
-    delete_all_notices()
+    # [주의] 전체 삭제 (필요시에만 주석 해제 후 사용)
+    # delete_all_notices()

@@ -135,26 +135,31 @@ def scrape_detail_with_selenium(driver, url):
             author_tag = soup.find(string=re.compile("작성자"))
             if author_tag:
                  # 부모나 형제 노드에서 값 찾기
-                 # case: <th>작성자</th><td>홍길동</td>
-                 author_td = author_tag.find_parent('th').find_next_sibling('td')
-                 if author_td:
-                     metadata['author'] = author_td.get_text(strip=True)
+                 author_th = author_tag.find_parent('th')
+                 if author_th:
+                     author_td = author_th.find_next_sibling('td')
+                     if author_td:
+                         metadata['author'] = author_td.get_text(strip=True)
             
             # 조회수
             views_tag = soup.find(string=re.compile("조회수|조회"))
             if views_tag:
-                 views_td = views_tag.find_parent('th').find_next_sibling('td')
-                 if views_td:
-                     try:
-                         metadata['views'] = int(re.sub(r'[^0-9]', '', views_td.get_text()))
-                     except: pass
+                 views_th = views_tag.find_parent('th')
+                 if views_th:
+                     views_td = views_th.find_next_sibling('td')
+                     if views_td:
+                         try:
+                             metadata['views'] = int(re.sub(r'[^0-9]', '', views_td.get_text()))
+                         except: pass
             
             # 작성일 (디테일 페이지에 있다면 가져오기)
             date_tag = soup.find(string=re.compile("등록일|작성일"))
             if date_tag:
-                 date_td = date_tag.find_parent('th').find_next_sibling('td')
-                 if date_td:
-                     metadata['date'] = date_td.get_text(strip=True)
+                 date_th = date_tag.find_parent('th')
+                 if date_th:
+                     date_td = date_th.find_next_sibling('td')
+                     if date_td:
+                         metadata['date'] = date_td.get_text(strip=True)
 
         except Exception as e:
             print(f"   ⚠️ 메타 파싱 에러: {e}")
@@ -320,6 +325,7 @@ def crawl_gnu_cse(mode='all', headless=True, page_limit=None):
             print(f"   🔍 상세 수집: {title[:10]}...", end="")
             detail_data = scrape_detail_with_selenium(driver, full_url)
             print(" 완료")
+            time.sleep(1.0) # Rate Limiting (Too Fast 403 방지)
 
             # --- 분류 로직 (중요/카테고리/긴급) ---
             # 중요 공지 키워드 확장
