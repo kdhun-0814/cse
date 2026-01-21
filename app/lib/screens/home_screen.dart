@@ -19,6 +19,7 @@ import 'admin/write_notice_screen.dart'; // NEW
 import 'admin/admin_notice_management_screen.dart'; // NEW
 import 'calendar_screen.dart';
 import 'my_info_screen.dart'; // NEW
+import 'notification_screen.dart'; // 알림 센터
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -245,6 +246,21 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         centerTitle: true,
         actions: [
+          // 알림 아이콘
+          IconButton(
+            icon: const Icon(
+              Icons.notifications_rounded,
+              color: Color(0xFF4E5968),
+            ),
+            onPressed: () {
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => const NotificationScreen(),
+                ),
+              );
+            },
+          ),
           IconButton(
             icon: const Icon(
               Icons.dashboard_customize_rounded,

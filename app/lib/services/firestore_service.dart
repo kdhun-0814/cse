@@ -98,6 +98,20 @@ class FirestoreService {
         });
   }
 
+  // 알림 센터용 - 긴급/중요 공지 가져오기
+  Stream<List<Notice>> getUrgentNotices() {
+    return _db
+        .collection('notices')
+        .where('is_urgent', isEqualTo: true) // 긴급 공지 우선
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => Notice.fromFirestore(doc, []))
+              .toList();
+        });
+  }
+
   // 스크랩 토글
   Future<void> toggleNoticeScrap(String noticeId, bool currentStatus) async {
     String uid = _auth.currentUser!.uid;
