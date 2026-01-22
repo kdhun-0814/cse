@@ -16,24 +16,34 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final ImagePicker _picker = ImagePicker();
 
-  String _title = '';
-  String _content = '';
-  String _link = '';
+  late TextEditingController _titleController;
+  late TextEditingController _contentController;
+  late TextEditingController _linkController;
+
   String _category = '외부행사'; // 기본값
   bool _isImportant = false;
   bool _isUrgent = false;
 
-  final List<String> _categories = [
-    '학사',
-    '장학',
-    '취업',
-    '학과행사', // Department Event included
-    '외부행사',
-    '공모전',
-  ];
+  final List<String> _categories = ['학사', '장학', '취업', '학과행사', '외부행사', '공모전'];
 
   List<XFile> _selectedImages = [];
   bool _isLoading = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _titleController = TextEditingController();
+    _contentController = TextEditingController();
+    _linkController = TextEditingController();
+  }
+
+  @override
+  void dispose() {
+    _titleController.dispose();
+    _contentController.dispose();
+    _linkController.dispose();
+    super.dispose();
+  }
 
   Future<void> _pickImages() async {
     final List<XFile> images = await _picker.pickMultiImage();
@@ -46,7 +56,9 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
 
   Future<void> _submit() async {
     if (!_formKey.currentState!.validate()) return;
-    _formKey.currentState!.save();
+
+    // 키보드 내리기
+    FocusScope.of(context).unfocus();
 
     setState(() => _isLoading = true);
 
@@ -56,7 +68,7 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
       for (var image in _selectedImages) {
         final ref = FirebaseStorage.instance
             .ref()
-            .child('notices') // external_events -> notices
+            .child('notices')
             .child('${DateTime.now().millisecondsSinceEpoch}_${image.name}');
 
         await ref.putFile(File(image.path));
@@ -66,10 +78,10 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
 
       // 2. DB 저장
       await _firestoreService.createNotice(
-        title: _title,
-        content: _content,
+        title: _titleController.text,
+        content: _contentController.text,
         category: _category,
-        link: _link,
+        link: _linkController.text,
         imageUrls: imageUrls,
         isImportant: _isImportant,
         isUrgent: _isUrgent,
@@ -90,6 +102,15 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
+  }
+
+  String? _validateUrl(String? value) {
+    if (value == null || value.trim().isEmpty) return null;
+    final uri = Uri.tryParse(value);
+    if (uri == null || !uri.hasScheme || !uri.hasAuthority) {
+      return '올바른 URL 형식을 입력해주세요 (예: https://...)';
+    }
+    return null;
   }
 
   @override
@@ -183,6 +204,9 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
               const Text("제목", style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextFormField(
+                controller: _titleController,
+                style: const TextStyle(color: Colors.black), // 텍스트 색상 명시
+                enabled: true, // 활성화 명시
                 decoration: InputDecoration(
                   hintText: "제목을 입력하세요",
                   filled: true,
@@ -191,9 +215,12 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 14,
+                  ),
                 ),
-                validator: (val) => val!.isEmpty ? "제목을 입력해주세요." : null,
-                onSaved: (val) => _title = val!,
+                validator: (val) => val!.trim().isEmpty ? "제목을 입력해주세요." : null,
               ),
               const SizedBox(height: 24),
 
@@ -201,6 +228,9 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
               const Text("내용", style: TextStyle(fontWeight: FontWeight.bold)),
               const SizedBox(height: 8),
               TextFormField(
+                controller: _contentController,
+                style: const TextStyle(color: Colors.black), // 텍스트 색상 명시
+                enabled: true, // 활성화 명시
                 maxLines: 8,
                 decoration: InputDecoration(
                   hintText: "내용을 입력하세요",
@@ -210,9 +240,9 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
                     borderRadius: BorderRadius.circular(12),
                     borderSide: BorderSide.none,
                   ),
+                  contentPadding: const EdgeInsets.all(16),
                 ),
-                validator: (val) => val!.isEmpty ? "내용을 입력해주세요." : null,
-                onSaved: (val) => _content = val!,
+                validator: (val) => val!.trim().isEmpty ? "내용을 입력해주세요." : null,
               ),
               const SizedBox(height: 24),
 
@@ -223,6 +253,7 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
               ),
               const SizedBox(height: 8),
               TextFormField(
+                controller: _linkController,
                 decoration: InputDecoration(
                   hintText: "URL을 입력하세요 (예: https://...)",
                   filled: true,
@@ -232,7 +263,8 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
                     borderSide: BorderSide.none,
                   ),
                 ),
-                onSaved: (val) => _link = val ?? '',
+                keyboardType: TextInputType.url,
+                validator: _validateUrl,
               ),
               const SizedBox(height: 24),
 
@@ -263,49 +295,51 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
                       ),
                     ),
                     const SizedBox(width: 12),
-                    ..._selectedImages.asMap().entries.map((entry) {
-                      final index = entry.key;
-                      final image = entry.value;
-                      return Stack(
-                        children: [
-                          Container(
-                            margin: const EdgeInsets.only(right: 12),
-                            width: 80,
-                            height: 80,
-                            decoration: BoxDecoration(
-                              borderRadius: BorderRadius.circular(12),
-                              image: DecorationImage(
-                                image: FileImage(File(image.path)),
-                                fit: BoxFit.cover,
-                              ),
-                            ),
-                          ),
-                          Positioned(
-                            top: -4,
-                            right: 8,
-                            child: GestureDetector(
-                              onTap: () {
-                                setState(() {
-                                  _selectedImages.removeAt(index);
-                                });
-                              },
-                              child: Container(
-                                padding: const EdgeInsets.all(2),
-                                decoration: const BoxDecoration(
-                                  color: Colors.black54,
-                                  shape: BoxShape.circle,
-                                ),
-                                child: const Icon(
-                                  Icons.close,
-                                  color: Colors.white,
-                                  size: 16,
+                    ..._selectedImages.asMap().entries.map(
+                      (entry) {
+                        final index = entry.key;
+                        final image = entry.value;
+                        return Stack(
+                          children: [
+                            Container(
+                              margin: const EdgeInsets.only(right: 12),
+                              width: 80,
+                              height: 80,
+                              decoration: BoxDecoration(
+                                borderRadius: BorderRadius.circular(12),
+                                image: DecorationImage(
+                                  image: FileImage(File(image.path)),
+                                  fit: BoxFit.cover,
                                 ),
                               ),
                             ),
-                          ),
-                        ],
-                      );
-                    }).toList(),
+                            Positioned(
+                              top: -4,
+                              right: 8,
+                              child: GestureDetector(
+                                onTap: () {
+                                  setState(() {
+                                    _selectedImages.removeAt(index);
+                                  });
+                                },
+                                child: Container(
+                                  padding: const EdgeInsets.all(2),
+                                  decoration: const BoxDecoration(
+                                    color: Colors.black54,
+                                    shape: BoxShape.circle,
+                                  ),
+                                  child: const Icon(
+                                    Icons.close,
+                                    color: Colors.white,
+                                    size: 16,
+                                  ),
+                                ),
+                              ),
+                            ),
+                          ],
+                        );
+                      },
+                    ).toList(), // asMap().entries ... toList() fixed validation
                   ],
                 ),
               ),

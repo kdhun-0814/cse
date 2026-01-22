@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'admin/admin_user_list_screen.dart';
 
 class MyInfoScreen extends StatefulWidget {
   const MyInfoScreen({super.key});
@@ -322,9 +323,6 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
               ),
             ),
             const SizedBox(height: 40),
-
-            // 추후 위젯 추가 영역 예시
-            // Text("위젯 추가 예정 영역", style: TextStyle(color: Colors.grey)),
           ],
         ),
       ),

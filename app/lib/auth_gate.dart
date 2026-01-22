@@ -3,9 +3,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'screens/main_nav_screen.dart';
 import 'screens/welcome_screen.dart';
+import 'services/fcm_service.dart';
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  bool _fcmInitialized = false;
 
   @override
   Widget build(BuildContext context) {
@@ -15,6 +23,7 @@ class AuthGate extends StatelessWidget {
         // 1. 로그인 상태 확인 로그
         if (!snapshot.hasData) {
           print("🔍 AuthGate: 로그아웃 상태임 -> WelcomeScreen 이동");
+          _fcmInitialized = false; // Reset FCM state
           return const WelcomeScreen();
         }
 
@@ -51,6 +60,20 @@ class AuthGate extends StatelessWidget {
             // 4. 승인 여부 분기
             if (status == 'approved') {
               print("🚀 AuthGate: 승인 완료 -> 메인 화면 이동");
+
+              // FCM 초기화 (한 번만)
+              if (!_fcmInitialized) {
+                _fcmInitialized = true;
+                FCMService()
+                    .initialize()
+                    .then((_) {
+                      print("✅ FCM 초기화 완료");
+                    })
+                    .catchError((e) {
+                      print("❌ FCM 초기화 실패: $e");
+                    });
+              }
+
               return const MainNavScreen();
             }
 

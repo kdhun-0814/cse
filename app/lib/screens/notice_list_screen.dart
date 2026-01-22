@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/notice.dart';
 import '../services/firestore_service.dart';
 import 'notice_detail_screen.dart';
@@ -90,6 +91,118 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
           ),
         ),
         actions: [
+          // 0. 푸시 알림 전송 버튼 (관리자 전용, 카테고리별)
+          if (_userRole == 'ADMIN' &&
+              widget.title != '전체' &&
+              widget.title != '긴급 공지' &&
+              widget.title != '중요 공지')
+            IconButton(
+              icon: const Icon(
+                Icons.notifications_active_outlined,
+                color: Color(0xFF191F28),
+              ),
+              tooltip: "${widget.title} 푸시 전송",
+              onPressed: () async {
+                // Get the latest notice from this category
+                final snapshot = await FirebaseFirestore.instance
+                    .collection('notices')
+                    .where('category', isEqualTo: widget.title)
+                    .orderBy('date', descending: true)
+                    .limit(1)
+                    .get();
+
+                if (snapshot.docs.isEmpty) {
+                  if (mounted) {
+                    ScaffoldMessenger.of(
+                      context,
+                    ).showSnackBar(const SnackBar(content: Text("공지가 없습니다.")));
+                  }
+                  return;
+                }
+
+                final noticeId = snapshot.docs.first.id;
+                final noticeTitle = snapshot.docs.first.data()['title'] ?? '';
+
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: Text("${widget.title} 푸시 알림"),
+                    content: Text(
+                      "'$noticeTitle'\n\n이 공지에 대한 푸시 알림을 전송하시겠습니까?",
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text("취소"),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text("전송"),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true && mounted) {
+                  await _firestoreService.requestPushNotification(noticeId);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text("푸시 알림 요청이 전송되었습니다.")),
+                    );
+                  }
+                }
+              },
+            ),
+
+          // 1. 모두 읽음 처리 버튼 (카테고리 뷰일 때만)
+          if (widget.title != '전체' &&
+              widget.title != '긴급 공지' &&
+              widget.title != '중요 공지')
+            IconButton(
+              icon: const Icon(
+                Icons.playlist_add_check_rounded,
+                color: Color(0xFF191F28),
+              ),
+              tooltip: "모두 읽음 처리",
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: Text("'${widget.title}' 공지 모두 읽음"),
+                    content: const Text("전체 공지를\n모두 읽음 처리하시겠습니까?"),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text(
+                          "취소",
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text(
+                          "확인",
+                          style: TextStyle(color: Color(0xFF3182F6)),
+                        ),
+                      ),
+                    ],
+                  ),
+                );
+
+                if (confirm == true) {
+                  await _firestoreService.markAllNoticesAsRead(widget.title);
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(
+                        content: Text("모두 읽음 처리되었습니다."),
+                        duration: Duration(seconds: 1),
+                      ),
+                    );
+                  }
+                }
+              },
+            ),
+
           // 1. 알림 토글 버튼 (모든 유저, 전체 카테고리 제외)
           if (widget.title != "전체")
             StreamBuilder<bool>(

@@ -16,6 +16,7 @@ class Notice {
   final bool? isImportant; // NEW
   final bool? isUrgent; // NEW
   final bool isDeleted; // NEW
+  final bool isRead; // NEW
 
   Notice({
     required this.id,
@@ -30,12 +31,17 @@ class Notice {
     this.viewsToday = 0,
     this.files = const [],
     this.isScraped = false,
-    this.isImportant = false, // NEW
-    this.isUrgent = false, // NEW
-    this.isDeleted = false, // NEW
+    this.isImportant = false,
+    this.isUrgent = false,
+    this.isDeleted = false,
+    this.isRead = true, // 기본값 읽음(=강조 안함)
   });
 
-  factory Notice.fromFirestore(DocumentSnapshot doc, List<String> userScraps) {
+  factory Notice.fromFirestore(
+    DocumentSnapshot doc,
+    List<String> userScraps, [
+    List<String> userReadNotices = const [],
+  ]) {
     Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
 
     // ★ 날짜 변환 로직
@@ -86,9 +92,10 @@ class Notice {
       viewsToday: (data['views_today'] is int) ? data['views_today'] : 0, // NEW
       files: parsedFiles,
       isScraped: userScraps.contains(doc.id),
-      isImportant: data['is_important'] ?? false, // NEW
-      isUrgent: data['is_urgent'] ?? false, // NEW
-      isDeleted: data['is_deleted'] ?? false, // NEW: Soft delete Support
+      isRead: userReadNotices.contains(doc.id), // NEW
+      isImportant: data['is_important'] ?? false,
+      isUrgent: data['is_urgent'] ?? false,
+      isDeleted: data['is_deleted'] ?? false,
     );
   }
 }

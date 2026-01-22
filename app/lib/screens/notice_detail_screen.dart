@@ -346,9 +346,19 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
                 height: 1.6,
               ),
               onTapUrl: (url) async {
-                if (await canLaunchUrl(Uri.parse(url))) {
-                  await launchUrl(Uri.parse(url));
-                  return true;
+                try {
+                  final uri = Uri.tryParse(url);
+                  if (uri != null && await canLaunchUrl(uri)) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    return true;
+                  }
+                  // Fallback: try launch without checking
+                  if (uri != null) {
+                    await launchUrl(uri, mode: LaunchMode.externalApplication);
+                    return true;
+                  }
+                } catch (e) {
+                  debugPrint("Error launching URL: $e");
                 }
                 return false;
               },
@@ -362,12 +372,27 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
                 Expanded(
                   child: OutlinedButton(
                     onPressed: () async {
-                      if (widget.notice.link.isNotEmpty) {
-                        final Uri url = Uri.parse(widget.notice.link);
-                        if (await canLaunchUrl(url)) {
-                          await launchUrl(
-                            url,
-                            mode: LaunchMode.externalApplication,
+                      try {
+                        if (widget.notice.link.isNotEmpty) {
+                          Uri url = Uri.parse(widget.notice.link);
+                          if (!url.hasScheme) {
+                            url = Uri.parse("https://${widget.notice.link}");
+                          }
+                          // launchUrl returns bool, but on some versions checking only canLaunchUrl is enough
+                          if (await canLaunchUrl(url)) {
+                            await launchUrl(
+                              url,
+                              mode: LaunchMode.externalApplication,
+                            );
+                          } else {
+                            // Try one more time without mode
+                            await launchUrl(url);
+                          }
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            SnackBar(content: Text("링크를 열 수 없습니다: $e")),
                           );
                         }
                       }
@@ -395,12 +420,22 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
                     onPressed: () async {
                       const String mainUrl =
                           "https://www.gnu.ac.kr/cse/na/ntt/selectNttList.do?mi=17093&bbsId=4753";
-                      final Uri url = Uri.parse(mainUrl);
-                      if (await canLaunchUrl(url)) {
-                        await launchUrl(
-                          url,
-                          mode: LaunchMode.externalApplication,
-                        );
+                      try {
+                        final Uri url = Uri.parse(mainUrl);
+                        if (await canLaunchUrl(url)) {
+                          await launchUrl(
+                            url,
+                            mode: LaunchMode.externalApplication,
+                          );
+                        } else {
+                          await launchUrl(url);
+                        }
+                      } catch (e) {
+                        if (context.mounted) {
+                          ScaffoldMessenger.of(context).showSnackBar(
+                            const SnackBar(content: Text("학과 페이지를 열 수 없습니다.")),
+                          );
+                        }
                       }
                     },
                     style: ElevatedButton.styleFrom(

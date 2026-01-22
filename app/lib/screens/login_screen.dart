@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'signup_screen.dart';
 import '../auth_gate.dart'; // AuthGate 임포트 추가
 import 'package:google_fonts/google_fonts.dart';
@@ -45,10 +46,21 @@ class _LoginScreenState extends State<LoginScreen> {
             password: _pwCtrl.text.trim(),
           );
 
-      // 5. 이메일 인증 여부 확인
-      // (단, 관리자 계정 0000000000@gnu.ac.kr은 인증 없이 통과)
-      if (!userCred.user!.emailVerified && email != "0000000000@gnu.ac.kr") {
-        await FirebaseAuth.instance.signOut(); // 즉시 로그아웃
+      // 5. 관리자 승인 여부 확인
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCred.user!.uid)
+          .get();
+
+      String status = 'pending';
+      if (userDoc.exists && userDoc.data() != null) {
+        status =
+            (userDoc.data() as Map<String, dynamic>)['status'] ?? 'pending';
+      }
+
+      // 관리자 계정 예외 처리 (0000...)
+      if (status != 'approved' && email != "0000000000@gnu.ac.kr") {
+        await FirebaseAuth.instance.signOut();
 
         if (mounted) {
           showDialog(
@@ -58,32 +70,11 @@ class _LoginScreenState extends State<LoginScreen> {
                 borderRadius: BorderRadius.circular(16),
               ),
               title: const Text(
-                "이메일 미인증",
+                "가입 대기 중",
                 style: TextStyle(fontWeight: FontWeight.bold),
               ),
-              content: const Text(
-                "학교 메일 인증이 완료되지 않았습니다.\n메일함(스팸함 포함)을 확인해주세요.",
-              ),
+              content: const Text("관리자의 가입 승인이 필요합니다.\n승인 완료 후 로그인해주세요."),
               actions: [
-                TextButton(
-                  onPressed: () async {
-                    try {
-                      await userCred.user!.sendEmailVerification();
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("인증 메일을 다시 보냈습니다.")),
-                      );
-                    } catch (e) {
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        const SnackBar(content: Text("잠시 후 다시 시도해주세요.")),
-                      );
-                    }
-                    Navigator.pop(ctx);
-                  },
-                  child: const Text(
-                    "메일 재전송",
-                    style: TextStyle(color: Color(0xFF3182F6)),
-                  ),
-                ),
                 TextButton(
                   onPressed: () => Navigator.pop(ctx),
                   child: const Text(
@@ -211,8 +202,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   Icons.school_outlined,
                   color: Color(0xFFB0B8C1),
                 ),
-                suffixText: "@gnu.ac.kr",
-                suffixStyle: TextStyle(color: Color(0xFF8B95A1)),
               ),
             ),
             const SizedBox(height: 12),

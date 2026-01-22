@@ -17,6 +17,7 @@ import '../models/home_widget_config.dart';
 import 'widget_management_screen.dart';
 import 'admin/write_notice_screen.dart'; // NEW
 import 'admin/admin_notice_management_screen.dart'; // NEW
+import 'admin/admin_user_list_screen.dart'; // NEW
 import 'calendar_screen.dart';
 import 'my_info_screen.dart'; // NEW
 import 'notification_screen.dart'; // 알림 센터
@@ -246,18 +247,53 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         centerTitle: true,
         actions: [
-          // 알림 아이콘
-          IconButton(
-            icon: const Icon(
-              Icons.notifications_rounded,
-              color: Color(0xFF4E5968),
-            ),
-            onPressed: () {
-              Navigator.push(
-                context,
-                MaterialPageRoute(
-                  builder: (context) => const NotificationScreen(),
-                ),
+          // 알림 아이콘 (배지 추가)
+          StreamBuilder<int>(
+            stream: _firestoreService.getTotalUnreadCount(),
+            builder: (context, snapshot) {
+              int count = snapshot.data ?? 0;
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.notifications_rounded,
+                      color: Color(0xFF4E5968),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          count > 99 ? '99+' : '$count',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
               );
             },
           ),
@@ -523,6 +559,13 @@ class _HomeScreenState extends State<HomeScreen>
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => const AdminNoticeManagementScreen(),
+                ),
+              );
+            }),
+            _buildDrawerItem(Icons.verified_user_outlined, '유저 승인', () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const AdminUserListScreen(),
                 ),
               );
             }),

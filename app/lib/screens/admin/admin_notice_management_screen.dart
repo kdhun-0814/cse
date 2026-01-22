@@ -93,6 +93,34 @@ class _AdminNoticeManagementScreenState
               });
             },
           ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.black),
+            onSelected: (value) async {
+              if (value == 'reset_urgent') {
+                bool confirm = await _showConfirmDialog("모든 긴급 공지를 해제하시겠습니까?");
+                if (confirm) {
+                  await _firestoreService.resetAllUrgentNotices();
+                  if (mounted) _showSnackBar("모든 긴급 공지가 해제되었습니다.");
+                }
+              } else if (value == 'reset_important') {
+                bool confirm = await _showConfirmDialog("모든 중요 공지를 해제하시겠습니까?");
+                if (confirm) {
+                  await _firestoreService.resetAllImportantNotices();
+                  if (mounted) _showSnackBar("모든 중요 공지가 해제되었습니다.");
+                }
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'reset_urgent',
+                child: Text("🚨 모든 긴급 공지 해제"),
+              ),
+              const PopupMenuItem(
+                value: 'reset_important',
+                child: Text("⭐ 모든 중요 공지 해제"),
+              ),
+            ],
+          ),
         ],
         bottom: TabBar(
           controller: _tabController,
@@ -369,5 +397,31 @@ class _AdminNoticeManagementScreenState
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text(message), duration: const Duration(seconds: 1)),
     );
+  }
+
+  Future<bool> _showConfirmDialog(String content) async {
+    return await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            content: Text(content),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text("취소", style: TextStyle(color: Colors.grey)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text(
+                  "확인",
+                  style: TextStyle(
+                    color: Color(0xFF3182F6),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
   }
 }

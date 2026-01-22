@@ -65,10 +65,10 @@ class _SignupScreenState extends State<SignupScreen> {
             password: _pwCtrl.text.trim(),
           );
 
-      // 5. 인증 메일 발송
-      await userCred.user!.sendEmailVerification();
+      // (이메일 인증 제거)
+      // await userCred.user!.sendEmailVerification();
 
-      // 6. Firestore DB 저장
+      // 5. Firestore DB 저장
       await FirebaseFirestore.instance
           .collection('users')
           .doc(userCred.user!.uid)
@@ -79,10 +79,12 @@ class _SignupScreenState extends State<SignupScreen> {
             'last_name': lastName, // 성
             'first_name': firstName, // 이름
             'role': 'USER',
-            'status': 'pending',
+            'status': 'pending', // 바로 Pending 상태
             'created_at': FieldValue.serverTimestamp(),
             'approved_at': null,
             'expires_at': null,
+            'push_settings': {}, // 초기값
+            'home_widget_config': [], // 초기값
           });
 
       if (mounted) {
@@ -92,13 +94,13 @@ class _SignupScreenState extends State<SignupScreen> {
           builder: (ctx) => AlertDialog(
             shape: RoundedRectangleBorder(
               borderRadius: BorderRadius.circular(16),
-            ), // 팝업도 둥글게
+            ),
             title: const Text(
-              "인증 메일 발송 완료",
+              "가입 신청 완료",
               style: TextStyle(fontWeight: FontWeight.bold),
             ),
-            content: Text(
-              "$email 로\n인증 메일을 보냈습니다.\n\n반드시 메일함에서 링크를 클릭하여\n인증을 완료한 후 로그인해주세요.",
+            content: const Text(
+              "회원가입 신청이 완료되었습니다.\n\n관리자 승인 후 앱 이용이 가능합니다.\n(승인/반려 결과는 별도 안내되지 않습니다)",
             ),
             actions: [
               TextButton(
@@ -167,7 +169,7 @@ class _SignupScreenState extends State<SignupScreen> {
               const SizedBox(height: 10),
               const Center(
                 child: Text(
-                  "학교 이메일(@gnu.ac.kr) 인증을 위해 \n 실제 학번을 입력해주세요.",
+                  "학번과 실명을 입력해주세요.\n관리자 승인 후 이용 가능합니다.",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 15,
@@ -211,8 +213,6 @@ class _SignupScreenState extends State<SignupScreen> {
                     Icons.badge_outlined,
                     color: Color(0xFFB0B8C1),
                   ),
-                  suffixText: "@gnu.ac.kr",
-                  suffixStyle: TextStyle(color: Color(0xFF8B95A1)),
                 ),
               ),
               const SizedBox(height: 24),
@@ -335,7 +335,7 @@ class _SignupScreenState extends State<SignupScreen> {
                           ),
                         )
                       : const Text(
-                          "인증 메일 받기",
+                          "가입 신청하기",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 15,
