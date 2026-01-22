@@ -1,9 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:image_picker/image_picker.dart';
 import '../widgets/common/custom_loading_indicator.dart';
 import '../widgets/common/custom_dialog.dart';
 import '../utils/toast_utils.dart';
+import '../widgets/common/bounceable.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -17,8 +21,27 @@ class _SignupScreenState extends State<SignupScreen> {
   final _pwCtrl = TextEditingController(); // 비번
   final _lastNameCtrl = TextEditingController(); // 성
   final _firstNameCtrl = TextEditingController(); // 이름
+  
+  File? _imageFile; // 재학증명서 이미지
+  final ImagePicker _picker = ImagePicker();
 
   bool _isLoading = false;
+
+  Future<void> _pickImage() async {
+    try {
+      final XFile? pickedFile = await _picker.pickImage(
+        source: ImageSource.gallery,
+        imageQuality: 70, 
+      );
+      if (pickedFile != null) {
+        setState(() {
+          _imageFile = File(pickedFile.path);
+        });
+      }
+    } catch (e) {
+      ToastUtils.show(context, "이미지를 불러오는데 실패했습니다.", isError: true);
+    }
+  }
 
   Future<void> _signUp() async {
     // 1. 기본 입력 확인
@@ -30,10 +53,10 @@ class _SignupScreenState extends State<SignupScreen> {
       return;
     }
 
-    // 2. 학번 자릿수 검사 (10자리)
+    // 2. 학번 자릿수 검사 (9~10자리)
     int idLength = _studentIdCtrl.text.length;
-    if (idLength != 9 && idLength != 10) {
-      ToastUtils.show(context, "정확한 학번을 입력해주세요.", isError: true);
+    if (idLength < 9 || idLength > 10) {
+      ToastUtils.show(context, "학번은 9자리 또는 10자리여야 합니다.", isError: true);
       return;
     }
 
@@ -42,6 +65,12 @@ class _SignupScreenState extends State<SignupScreen> {
     RegExp passwordRegex = RegExp(r'^(?=.*[A-Za-z])(?=.*\d).{8,}$');
     if (!passwordRegex.hasMatch(password)) {
       ToastUtils.show(context, "비밀번호는 영문+숫자 포함 8자리 이상이어야 합니다.", isError: true);
+      return;
+    }
+
+    // 4. 재학증명서 이미지 확인
+    if (_imageFile == null) {
+      ToastUtils.show(context, "재학증명서(캡처) 이미지를 첨부해주세요.", isError: true);
       return;
     }
 
@@ -55,20 +84,28 @@ class _SignupScreenState extends State<SignupScreen> {
       String firstName = _firstNameCtrl.text.trim();
       String fullName = "$lastName$firstName";
 
-      // 4. Firebase Auth 계정 생성
+      // 5. Firebase Auth 계정 생성
       UserCredential userCred = await FirebaseAuth.instance
           .createUserWithEmailAndPassword(
             email: email,
             password: _pwCtrl.text.trim(),
           );
 
-      // 5. 인증 메일 발송
-      await userCred.user!.sendEmailVerification();
+      // 6. 재학증명서 이미지 업로드
+      String uid = userCred.user!.uid;
+      String fileName = "enrollment_proof_$uid.jpg";
+      Reference storageRef = FirebaseStorage.instance
+          .ref()
+          .child("enrollment_proofs")
+          .child(fileName);
+      
+      await storageRef.putFile(_imageFile!);
+      String proofUrl = await storageRef.getDownloadURL();
 
-      // 6. Firestore DB 저장
+      // 7. Firestore DB 저장 (Pending 상태)
       await FirebaseFirestore.instance
           .collection('users')
-          .doc(userCred.user!.uid)
+          .doc(uid)
           .set({
             'student_id': _studentIdCtrl.text.trim(),
             'email': email,
@@ -76,7 +113,8 @@ class _SignupScreenState extends State<SignupScreen> {
             'last_name': lastName, // 성
             'first_name': firstName, // 이름
             'role': 'USER',
-            'status': 'pending',
+            'status': 'pending', // 승인 대기
+            'proof_url': proofUrl, // 증명서 URL
             'created_at': FieldValue.serverTimestamp(),
             'approved_at': null,
             'expires_at': null,
@@ -87,12 +125,12 @@ class _SignupScreenState extends State<SignupScreen> {
           context: context,
           barrierDismissible: false,
           builder: (ctx) => CustomDialog(
-            title: "인증 메일 발송 완료",
-            contentText: "$email 로\n인증 메일을 보냈습니다.\n\n반드시 메일함에서 링크를 클릭하여\n인증을 완료한 후 로그인해주세요.",
+            title: "가입 신청 완료",
+            contentText: "회원가입 신청이 완료되었습니다.\n학생회에서 재학 정보를 확인한 후\n승인하면 로그인이 가능합니다.\n(최대 3일 소요)",
             confirmText: "확인",
             onConfirm: () {
-              Navigator.pop(ctx);
-              Navigator.pop(context);
+              Navigator.pop(ctx); // 다이얼로그 닫기
+              Navigator.pop(context); // 로그인 화면으로 돌아가기
             },
           ),
         );
@@ -144,7 +182,7 @@ class _SignupScreenState extends State<SignupScreen> {
               const SizedBox(height: 10),
               const Center(
                 child: Text(
-                  "학교 이메일(@gnu.ac.kr) 인증을 위해 \n 실제 학번을 입력해주세요.",
+                  "재학 여부 확인을 위해\n재학증명 서류 또는 이미지를 첨부해주세요.",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 15,
@@ -188,8 +226,6 @@ class _SignupScreenState extends State<SignupScreen> {
                     Icons.badge_outlined,
                     color: Color(0xFFB0B8C1),
                   ),
-                  suffixText: "@gnu.ac.kr",
-                  suffixStyle: TextStyle(color: Color(0xFF8B95A1)),
                 ),
               ),
               const SizedBox(height: 24),
@@ -287,28 +323,92 @@ class _SignupScreenState extends State<SignupScreen> {
                 ),
               ),
 
+              // 4. 재학증명서 업로드 UI
+              const Text(
+                "재학 증명 서류 또는 이미지 첨부",
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF333D4B),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Bounceable(
+                onTap: _pickImage,
+                child: Container(
+                  width: double.infinity,
+                  height: 150,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF9FAFB),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(color: const Color(0xFFE5E8EB)),
+                  ),
+                  alignment: Alignment.center,
+                  child: _imageFile == null
+                      ? Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: const [
+                            Icon(Icons.add_photo_alternate_outlined,
+                                size: 40, color: Color(0xFFB0B8C1)),
+                            SizedBox(height: 8),
+                            Text(
+                              "이미지 추가하기",
+                              style: TextStyle(
+                                  color: Color(0xFF8B95A1), fontSize: 13),
+                            ),
+                          ],
+                        )
+                      : Stack(
+                          children: [
+                            ClipRRect(
+                              borderRadius: BorderRadius.circular(12),
+                              child: Image.file(
+                                _imageFile!,
+                                width: double.infinity,
+                                height: 150,
+                                fit: BoxFit.cover,
+                              ),
+                            ),
+                            Positioned(
+                              top: 8,
+                              right: 8,
+                              child: Container(
+                                padding: const EdgeInsets.all(4),
+                                decoration: const BoxDecoration(
+                                  color: Colors.black54,
+                                  shape: BoxShape.circle,
+                                ),
+                                child: const Icon(
+                                  Icons.check,
+                                  color: Colors.white,
+                                  size: 16,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                ),
+              ),
               const SizedBox(height: 40),
 
-              // 4. 가입 버튼
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _signUp,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3182F6),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
+              // 5. 가입 버튼
+              Bounceable(
+                onTap: _isLoading ? null : _signUp,
+                child: Container(
+                  width: double.infinity,
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3182F6),
+                    borderRadius: BorderRadius.circular(16),
                   ),
+                  alignment: Alignment.center,
                   child: _isLoading
                       ? const CustomLoadingIndicator(
                           color: Colors.white,
                           size: 20,
                         )
                       : const Text(
-                          "인증 메일 받기",
+                          "가입 신청하기",
                           style: TextStyle(
                             color: Colors.white,
                             fontSize: 15,

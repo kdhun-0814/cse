@@ -313,7 +313,7 @@ class _AdminNoticeManagementScreenState
         onConfirm: () {
           Navigator.pop(context);
           _firestoreService.requestPushNotification(notice.id);
-          ToastUtils.show(context, "푸시 알림 요청이 전송되었습니다.");
+          ToastUtils.show(context, "푸시 알림이 전송되었습니다.");
         },
       ),
     );

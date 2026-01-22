@@ -1,4 +1,7 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'admin/admin_approval_screen.dart'; // Admin Approval Screen Import
 import 'package:flutter/services.dart';
 import 'dart:ui'; // for lerpDouble
 import 'package:table_calendar/table_calendar.dart';
@@ -510,6 +513,13 @@ class _HomeScreenState extends State<HomeScreen>
               Navigator.of(context).push(
                 MaterialPageRoute(
                   builder: (context) => const AdminNoticeManagementScreen(),
+                ),
+              );
+            }),
+            _buildDrawerItem(Icons.how_to_reg_outlined, '가입 승인 관리', () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const AdminApprovalScreen(),
                 ),
               );
             }),

@@ -113,7 +113,7 @@ class _GroupRootScreenState extends State<GroupRootScreen> {
             ),
 
             const GroupListScreen(filterType: 'all'), // 2: 모집 목록
-            const GroupListScreen(filterType: 'my'), // 3: 모집 관리
+            const GroupListScreen(filterType: 'my'), // 3: 내 모집 관리
             const GroupListScreen(filterType: 'liked'), // 4: 찜한 목록
           ],
         ),

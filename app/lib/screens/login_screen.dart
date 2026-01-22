@@ -6,6 +6,7 @@ import 'package:google_fonts/google_fonts.dart';
 import '../widgets/common/custom_loading_indicator.dart';
 import '../widgets/common/custom_dialog.dart';
 import '../utils/toast_utils.dart';
+import '../widgets/common/bounceable.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -26,9 +27,10 @@ class _LoginScreenState extends State<LoginScreen> {
       return;
     }
 
-    // 2. 학번 자릿수(10자리) 검사
-    if (_studentIdCtrl.text.length != 10) {
-      ToastUtils.show(context, "학번은 10자리여야 합니다. 올바르게 입력해주세요.", isError: true);
+    // 2. 학번 자릿수(9~10자리) 검사
+    int idLength = _studentIdCtrl.text.length;
+    if (idLength < 9 || idLength > 10) {
+      ToastUtils.show(context, "학번은 9자리 또는 10자리여야 합니다.", isError: true);
       return;
     }
 
@@ -44,46 +46,12 @@ class _LoginScreenState extends State<LoginScreen> {
             password: _pwCtrl.text.trim(),
           );
 
-      // 5. 이메일 인증 여부 확인
-      // (단, 관리자 계정 0000000000@gnu.ac.kr은 인증 없이 통과)
-      if (!userCred.user!.emailVerified && email != "0000000000@gnu.ac.kr") {
-        await FirebaseAuth.instance.signOut(); // 즉시 로그아웃
-
-        if (mounted) {
-          showDialog(
-            context: context,
-            builder: (ctx) => CustomDialog(
-              title: "이메일 미인증",
-              contentText: "학교 메일 인증이 완료되지 않았습니다.\n메일함(스팸함 포함)을 확인해주세요.",
-              cancelText: "메일 재전송",
-              onCancel: () async {
-                try {
-                  await userCred.user!.sendEmailVerification();
-                  ToastUtils.show(context, "인증 메일을 다시 보냈습니다.");
-                } catch (e) {
-                  ToastUtils.show(
-                    context,
-                    "잠시 후 다시 시도해주세요.",
-                    isError: true,
-                  );
-                }
-                Navigator.pop(ctx);
-              },
-              confirmText: "확인",
-              onConfirm: () => Navigator.pop(ctx),
-            ),
-          );
-        }
-        return;
-      }
-
-      // 로그인 성공 시 화면 이동 로직
-      // "모든 화면 기록을 지우고 AuthGate(앱의 첫 관문)로 새로 이동하라"
+      // 5. 로그인 성공 시 화면 이동 로직 (이메일 인증 확인 제거됨)
       if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const AuthGate()),
-          (route) => false, // 이전의 모든 화면 기록 삭제 (뒤로가기 불가)
+          (route) => false,
         );
       }
     } on FirebaseAuthException catch (e) {
@@ -143,7 +111,7 @@ class _LoginScreenState extends State<LoginScreen> {
               "MY_CSE",
 
               style: GoogleFonts.outfit(
-                fontSize: 25,
+                fontSize: 36,
                 fontWeight: FontWeight.w900,
                 color: const Color(0xFF3182F6),
                 letterSpacing: 1.2,
@@ -183,8 +151,6 @@ class _LoginScreenState extends State<LoginScreen> {
                   Icons.school_outlined,
                   color: Color(0xFFB0B8C1),
                 ),
-                suffixText: "@gnu.ac.kr",
-                suffixStyle: TextStyle(color: Color(0xFF8B95A1)),
               ),
             ),
             const SizedBox(height: 12),
@@ -215,29 +181,30 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 24),
 
             // 로그인 버튼
-            ElevatedButton(
-              onPressed: _isLoading ? null : _login,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3182F6),
+            Bounceable(
+              onTap: _isLoading ? null : _login,
+              child: Container(
+                width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3182F6),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                elevation: 0,
-              ),
-              child: _isLoading
-                  ? const CustomLoadingIndicator(
-                      color: Colors.white,
-                      size: 20,
-                    )
-                  : const Text(
-                      "로그인",
-                      style: TextStyle(
+                alignment: Alignment.center,
+                child: _isLoading
+                    ? const CustomLoadingIndicator(
                         color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
+                        size: 20,
+                      )
+                    : const Text(
+                        "로그인",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                        ),
                       ),
-                    ),
+              ),
             ),
             const SizedBox(height: 16),
 

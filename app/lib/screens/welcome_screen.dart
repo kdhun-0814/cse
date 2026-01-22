@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'login_screen.dart';
 import 'signup_screen.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../widgets/common/bounceable.dart';
 
 class WelcomeScreen extends StatefulWidget {
   const WelcomeScreen({super.key});
@@ -84,25 +85,23 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 const SizedBox(height: 24),
 
                 // 로그인 버튼
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const LoginScreen(),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF3182F6),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                Bounceable(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const LoginScreen(),
                       ),
+                    );
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3182F6),
+                      borderRadius: BorderRadius.circular(16),
                     ),
+                    alignment: Alignment.center,
                     child: const Text(
                       "로그인",
                       style: TextStyle(
@@ -116,31 +115,29 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                 const SizedBox(height: 12),
 
                 // 회원가입 버튼
-                SizedBox(
-                  width: double.infinity,
-                  height: 52,
-                  child: ElevatedButton(
-                    onPressed: () {
-                      Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                          builder: (context) => const SignupScreen(),
-                        ),
-                      );
-                    },
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFFE8F3FF),
-                      foregroundColor: const Color(0xFF3182F6),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
+                Bounceable(
+                  onTap: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SignupScreen(),
                       ),
+                    );
+                  },
+                  child: Container(
+                    width: double.infinity,
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFE8F3FF),
+                      borderRadius: BorderRadius.circular(16),
                     ),
+                    alignment: Alignment.center,
                     child: const Text(
                       "회원가입",
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
+                        color: const Color(0xFF3182F6),
                       ),
                     ),
                   ),
