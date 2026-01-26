@@ -85,6 +85,11 @@ def classify_notice_with_gemini(title):
                 time.sleep(retry_delay)
                 retry_delay *= 2 # 지수 백오프 (2초 -> 4초 -> 8초)
                 continue
+
+            elif response.status_code == 403:
+                # 403 (Quota/Permission) -> 즉시 키워드 백업 사용 (무료 API 한계)
+                print(f"   ⚠️ Gemini 403 (Quota/Perm). 키워드 분류로 대체.")
+                return keyword_fallback(title)
             
             else:
                 print(f"⚠️ Gemini 에러: {response.status_code}")

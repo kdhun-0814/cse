@@ -1,12 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'signup_screen.dart';
 import '../auth_gate.dart'; // AuthGate 임포트 추가
 import 'package:google_fonts/google_fonts.dart';
-import '../widgets/common/custom_loading_indicator.dart';
-import '../widgets/common/custom_dialog.dart';
-import '../utils/toast_utils.dart';
-import '../widgets/common/bounceable.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -23,14 +20,17 @@ class _LoginScreenState extends State<LoginScreen> {
   Future<void> _login() async {
     // 1. 입력값이 비어있는지 확인
     if (_studentIdCtrl.text.isEmpty || _pwCtrl.text.isEmpty) {
-      ToastUtils.show(context, "학번과 비밀번호를 모두 입력해주세요.", isError: true);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("학번과 비밀번호를 모두 입력해주세요.")));
       return;
     }
 
-    // 2. 학번 자릿수(9~10자리) 검사
-    int idLength = _studentIdCtrl.text.length;
-    if (idLength < 9 || idLength > 10) {
-      ToastUtils.show(context, "학번은 9자리 또는 10자리여야 합니다.", isError: true);
+    // 2. 학번 자릿수(10자리) 검사
+    if (_studentIdCtrl.text.length != 10) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("학번은 10자리여야 합니다. 올바르게 입력해주세요.")),
+      );
       return;
     }
 
@@ -46,12 +46,59 @@ class _LoginScreenState extends State<LoginScreen> {
             password: _pwCtrl.text.trim(),
           );
 
-      // 5. 로그인 성공 시 화면 이동 로직 (이메일 인증 확인 제거됨)
+      // 5. 관리자 승인 여부 확인
+      DocumentSnapshot userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(userCred.user!.uid)
+          .get();
+
+      String status = 'pending';
+      if (userDoc.exists && userDoc.data() != null) {
+        status =
+            (userDoc.data() as Map<String, dynamic>)['status'] ?? 'pending';
+      }
+
+      // 관리자 계정 예외 처리 (0000...)
+      if (status != 'approved' && email != "0000000000@gnu.ac.kr") {
+        await FirebaseAuth.instance.signOut();
+
+        if (mounted) {
+          showDialog(
+            context: context,
+            builder: (ctx) => AlertDialog(
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
+              title: const Text(
+                "가입 대기 중",
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+              content: const Text("관리자의 가입 승인이 필요합니다.\n승인 완료 후 로그인해주세요."),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.pop(ctx),
+                  child: const Text(
+                    "확인",
+                    style: TextStyle(
+                      fontWeight: FontWeight.bold,
+                      color: Color(0xFF3182F6),
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          );
+        }
+        return;
+      }
+
+      // 로그인 성공 시 화면 이동 로직
+      // "모든 화면 기록을 지우고 AuthGate(앱의 첫 관문)로 새로 이동하라"
       if (mounted) {
         Navigator.pushAndRemoveUntil(
           context,
           MaterialPageRoute(builder: (context) => const AuthGate()),
-          (route) => false,
+          (route) => false, // 이전의 모든 화면 기록 삭제 (뒤로가기 불가)
         );
       }
     } on FirebaseAuthException catch (e) {
@@ -73,9 +120,13 @@ class _LoginScreenState extends State<LoginScreen> {
         message = "비활성화된 계정입니다. 관리자에게 문의하세요.";
       }
 
-      ToastUtils.show(context, message, isError: true);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(message)));
     } catch (e) {
-      ToastUtils.show(context, "오류가 발생했습니다: $e", isError: true);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text("오류가 발생했습니다: $e")));
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -111,7 +162,7 @@ class _LoginScreenState extends State<LoginScreen> {
               "MY_CSE",
 
               style: GoogleFonts.outfit(
-                fontSize: 36,
+                fontSize: 25,
                 fontWeight: FontWeight.w900,
                 color: const Color(0xFF3182F6),
                 letterSpacing: 1.2,
@@ -181,30 +232,33 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 24),
 
             // 로그인 버튼
-            Bounceable(
-              onTap: _isLoading ? null : _login,
-              child: Container(
-                width: double.infinity,
+            ElevatedButton(
+              onPressed: _isLoading ? null : _login,
+              style: ElevatedButton.styleFrom(
+                backgroundColor: const Color(0xFF3182F6),
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                decoration: BoxDecoration(
-                  color: const Color(0xFF3182F6),
+                shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
                 ),
-                alignment: Alignment.center,
-                child: _isLoading
-                    ? const CustomLoadingIndicator(
-                        color: Colors.white,
-                        size: 20,
-                      )
-                    : const Text(
-                        "로그인",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+                elevation: 0,
               ),
+              child: _isLoading
+                  ? const SizedBox(
+                      width: 20,
+                      height: 20,
+                      child: CircularProgressIndicator(
+                        color: Colors.white,
+                        strokeWidth: 2,
+                      ),
+                    )
+                  : const Text(
+                      "로그인",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
             ),
             const SizedBox(height: 16),
 

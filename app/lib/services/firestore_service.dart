@@ -67,6 +67,7 @@ class FirestoreService {
     final noticeStream = _db
         .collection('notices')
         .orderBy('date', descending: true)
+        .limit(100)
         .snapshots();
 
     final userStream = _db.collection('users').doc(uid).snapshots();
@@ -75,12 +76,12 @@ class FirestoreService {
       QuerySnapshot noticeSnapshot,
       DocumentSnapshot userSnapshot,
     ) {
-      final scraps = List<String>.from(
-        (userSnapshot.data() as Map<String, dynamic>?)?['scraps'] ?? [],
-      );
+      final userData = userSnapshot.data() as Map<String, dynamic>?;
+      final scraps = List<String>.from(userData?['scraps'] ?? []);
+      final readNotices = List<String>.from(userData?['readNotices'] ?? []);
 
       return noticeSnapshot.docs
-          .map((doc) => Notice.fromFirestore(doc, scraps))
+          .map((doc) => Notice.fromFirestore(doc, scraps, readNotices))
           .where((n) => !n.isDeleted) // 숨김 처리된 공지 제외
           .toList();
     });
@@ -90,6 +91,20 @@ class FirestoreService {
   Stream<List<Notice>> getAdminNotices() {
     return _db
         .collection('notices')
+        .orderBy('date', descending: true)
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs
+              .map((doc) => Notice.fromFirestore(doc, []))
+              .toList();
+        });
+  }
+
+  // 알림 센터용 - 긴급/중요 공지 가져오기
+  Stream<List<Notice>> getUrgentNotices() {
+    return _db
+        .collection('notices')
+        .where('is_urgent', isEqualTo: true) // 긴급 공지 우선
         .orderBy('date', descending: true)
         .snapshots()
         .map((snapshot) {
@@ -126,73 +141,227 @@ class FirestoreService {
       'readNotices': FieldValue.arrayUnion([noticeId]),
     });
 
-    // 2. 공지 조회수 증가 (전체 + 오늘)
-    // 매번 읽을 때마다 증가하면 남용될 수 있으므로, readNotices에 없을 때만 증가시키는 게 좋지만
-    // 유저 요청 사항(Hot공지)을 위해 일단 방문 시 무조건 증가 또는 일정 쿨타임(여기선 단순화하여 방문시 증가)
-    // 다만, 'readNotices' 확인 후 증가시키면 재방문 시 카운트가 안되므로 Hot공지 로직에 불리함.
-    // 따라서 무조건 증가시키되, 어뷰징 방지는 별도 고려 필요. 여기선 바로 증가.
+    // 2. 공지 조회수 증가
     await noticeRef.update({
       'views': FieldValue.increment(1),
       'views_today': FieldValue.increment(1),
     });
   }
 
-  // 카테고리별 스마트 공지 개수 스트림 (마지막 방문 이후 새로 올라온 것)
-  Stream<int> getNoticeCount(String category) {
+  // 전체 공지(최근 100개) 일괄 읽음 처리
+  Future<void> markAllGlobalNoticesAsRead() async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      final snapshot = await _db
+          .collection('notices')
+          .orderBy('crawled_at', descending: true)
+          .limit(100)
+          .get();
+
+      if (snapshot.docs.isEmpty) return;
+
+      final noticeIds = snapshot.docs.map((doc) => doc.id).toList();
+
+      try {
+        await _db.collection('users').doc(user.uid).update({
+          'readNotices': FieldValue.arrayUnion(noticeIds),
+        });
+      } catch (e) {
+        // 문서가 없거나 업데이트 실패 시 생성/병합 시도
+        await _db.collection('users').doc(user.uid).set({
+          'readNotices': noticeIds,
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      print("Error marking all global notices as read: $e");
+      rethrow; // UI에서 처리하도록 전파
+    }
+  }
+
+  // 카테고리별 공지 일괄 읽음 처리 (최대 100개)
+  Future<void> markAllNoticesAsRead(String category) async {
+    final user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      // 해당 카테고리의 최근 100개 공지 ID 가져오기
+      final snapshot = await _db
+          .collection('notices')
+          .where('category', isEqualTo: category)
+          .orderBy('crawled_at', descending: true)
+          .limit(100)
+          .get();
+
+      if (snapshot.docs.isEmpty) return;
+
+      final noticeIds = snapshot.docs.map((doc) => doc.id).toList();
+
+      // 사용자의 readNotices에 일괄 추가
+      try {
+        await _db.collection('users').doc(user.uid).update({
+          'readNotices': FieldValue.arrayUnion(noticeIds),
+        });
+      } catch (e) {
+        await _db.collection('users').doc(user.uid).set({
+          'readNotices': noticeIds,
+        }, SetOptions(merge: true));
+      }
+    } catch (e) {
+      print("Error marking notices as read for $category: $e");
+      rethrow;
+    }
+  }
+
+  // 전체 공지 가져오기 (알림센터용, 읽음 여부 확인 위해 결합 스트림 사용)
+  Stream<List<Notice>> getGlobalRecentNotices() {
     String uid = _auth.currentUser!.uid;
 
-    // 1. 공지 스트림 (최근 100개만 가져와서 클라이언트 필터링 - 효율성 고려)
-    // 혹은 crawled_at 기준으로 쿼리하면 좋지만, last_visit이 동적이므로 쿼리에 넣기 애매함
-    // 여기선 분류별 최신순으로 가져와서 비교
     final noticeStream = _db
         .collection('notices')
-        .where('category', isEqualTo: category)
         .orderBy('crawled_at', descending: true)
-        .limit(50) // 배지에는 50개 이상 표시할 일이 드물므로 제한
+        .limit(100)
         .snapshots();
 
-    // 2. 유저 스트림 (last_visits 필드 확인)
     final userStream = _db.collection('users').doc(uid).snapshots();
 
-    // 3. 두 스트림 결합
     return Rx.combineLatest2(noticeStream, userStream, (
       QuerySnapshot noticeSnapshot,
       DocumentSnapshot userSnapshot,
     ) {
       final userData = userSnapshot.data() as Map<String, dynamic>?;
-      final lastVisits =
-          userData?['last_visits'] as Map<String, dynamic>? ?? {};
+      final readNotices = List<String>.from(userData?['readNotices'] ?? []);
+      final scraps = List<String>.from(userData?['scraps'] ?? []);
 
-      // 해당 카테고리의 마지막 방문 시간 가져오기
-      Timestamp? lastVisitTs = lastVisits[category] as Timestamp?;
+      return noticeSnapshot.docs.map((doc) {
+        return Notice.fromFirestore(doc, scraps, readNotices);
+      }).toList();
+    });
+  }
 
-      // 방문 기록이 없으면?
-      // 정책: "처음이면 모두 새글" vs "처음이면 0개(방문해야 카운트 시작)"
-      // 통상적으로 앱 설치 후 첫 진입 시 배지가 너무 많으면 부담스러우므로 0개로 하거나,
-      // 혹은 오늘 날짜 기준으로 하거나.
-      // 여기선: 방문 기록 없으면 -> 오늘 올라온 것만 카운트 (기존 로직 fallback)
-      DateTime cutoffTime;
-      if (lastVisitTs != null) {
-        cutoffTime = lastVisitTs.toDate();
-      } else {
-        final now = DateTime.now();
-        cutoffTime = DateTime(now.year, now.month, now.day);
-      }
+  // 핫 공지 (오늘 조회수 기준 Top 5)
+  Stream<List<Notice>> getHotNotices() {
+    String uid = _auth.currentUser!.uid;
+    // 핫 공지도 스크랩/읽음 여부 표시를 위해 결합 스트림 사용 권장
+    // 하지만 views_today 순으로 정렬해야 함.
+
+    final noticeStream = _db
+        .collection('notices')
+        .orderBy('views_today', descending: true)
+        .limit(5)
+        .snapshots();
+
+    final userStream = _db.collection('users').doc(uid).snapshots();
+
+    return Rx.combineLatest2(noticeStream, userStream, (
+      QuerySnapshot noticeSnapshot,
+      DocumentSnapshot userSnapshot,
+    ) {
+      final userData = userSnapshot.data() as Map<String, dynamic>?;
+      final scraps = List<String>.from(userData?['scraps'] ?? []);
+      final readNotices = List<String>.from(userData?['readNotices'] ?? []);
+
+      return noticeSnapshot.docs
+          .map((doc) => Notice.fromFirestore(doc, scraps, readNotices))
+          .toList();
+    });
+  }
+
+  // 카테고리별 스마트 공지 개수 스트림 (읽지 않은 공지)
+  Stream<int> getNoticeCount(String category) {
+    String uid = _auth.currentUser!.uid;
+
+    final noticeStream = _db
+        .collection('notices')
+        .where('category', isEqualTo: category)
+        .orderBy('crawled_at', descending: true)
+        .limit(100)
+        .snapshots();
+
+    final userStream = _db.collection('users').doc(uid).snapshots();
+
+    return Rx.combineLatest2(noticeStream, userStream, (
+      QuerySnapshot noticeSnapshot,
+      DocumentSnapshot userSnapshot,
+    ) {
+      final userData = userSnapshot.data() as Map<String, dynamic>?;
+      final readNotices = List<String>.from(userData?['readNotices'] ?? []);
 
       int newCount = 0;
       for (var doc in noticeSnapshot.docs) {
-        final data = doc.data() as Map<String, dynamic>;
-        // crawled_at이 없으면 date(문자열)로 추정하거나 제외
-        // 크롤러가 crawled_at을 넣어주므로 믿고 씀. 없으면 패스.
-        if (data['crawled_at'] is Timestamp) {
-          DateTime crawledAt = (data['crawled_at'] as Timestamp).toDate();
-          if (crawledAt.isAfter(cutoffTime)) {
-            newCount++;
-          }
+        // 이미 읽은 공지는 카운트 제외
+        if (!readNotices.contains(doc.id)) {
+          newCount++;
         }
       }
       return newCount;
     });
+  }
+
+  // 전체 안 읽은 공지 개수 (알림 아이콘용)
+  Stream<int> getTotalUnreadCount() {
+    String uid = _auth.currentUser!.uid;
+
+    final noticeStream = _db
+        .collection('notices')
+        .orderBy('crawled_at', descending: true)
+        .limit(100)
+        .snapshots();
+
+    final userStream = _db.collection('users').doc(uid).snapshots();
+
+    return Rx.combineLatest2(noticeStream, userStream, (
+      QuerySnapshot noticeSnapshot,
+      DocumentSnapshot userSnapshot,
+    ) {
+      final userData = userSnapshot.data() as Map<String, dynamic>?;
+      final readNotices = List<String>.from(userData?['readNotices'] ?? []);
+
+      int newCount = 0;
+      for (var doc in noticeSnapshot.docs) {
+        if (!readNotices.contains(doc.id)) {
+          newCount++;
+        }
+      }
+      return newCount;
+    });
+  }
+
+  // 전체 공지 카운트 메서드 (읽지 않은 공지)
+  Stream<int> getWholeNoticeCount() {
+    String uid = _auth.currentUser!.uid;
+
+    final noticeStream = _db
+        .collection('notices')
+        .orderBy('crawled_at', descending: true)
+        .limit(50)
+        .snapshots();
+
+    final userStream = _db.collection('users').doc(uid).snapshots();
+
+    return Rx.combineLatest2(noticeStream, userStream, (
+      QuerySnapshot noticeSnapshot,
+      DocumentSnapshot userSnapshot,
+    ) {
+      final userData = userSnapshot.data() as Map<String, dynamic>?;
+      final readNotices = List<String>.from(userData?['readNotices'] ?? []);
+
+      int newCount = 0;
+      for (var doc in noticeSnapshot.docs) {
+        if (!readNotices.contains(doc.id)) {
+          newCount++;
+        }
+      }
+      return newCount;
+    });
+  }
+
+  Future<void> updateLastNotificationCheck() async {
+    String uid = _auth.currentUser!.uid;
+    await _db.collection('users').doc(uid).set({
+      'last_notification_check': FieldValue.serverTimestamp(),
+    }, SetOptions(merge: true));
   }
 
   // 유저 방문 기록 업데이트
@@ -247,8 +416,37 @@ class FirestoreService {
       'created_at': FieldValue.serverTimestamp(),
       'is_important': isImportant,
       'is_urgent': isUrgent,
+      'crawled_at': FieldValue.serverTimestamp(), // 알림 카운트용, 직접 작성 시에도 추가
       'files': [],
     });
+  }
+
+  // 관리자 기능: 모든 긴급 공지 해제
+  Future<void> resetAllUrgentNotices() async {
+    final batch = _db.batch();
+    final snapshot = await _db
+        .collection('notices')
+        .where('is_urgent', isEqualTo: true)
+        .get();
+
+    for (var doc in snapshot.docs) {
+      batch.update(doc.reference, {'is_urgent': false});
+    }
+    await batch.commit();
+  }
+
+  // 관리자 기능: 모든 중요 공지 해제
+  Future<void> resetAllImportantNotices() async {
+    final batch = _db.batch();
+    final snapshot = await _db
+        .collection('notices')
+        .where('is_important', isEqualTo: true)
+        .get();
+
+    for (var doc in snapshot.docs) {
+      batch.update(doc.reference, {'is_important': false});
+    }
+    await batch.commit();
   }
 
   // 관리자 기능: 공지 삭제 (Soft Delete)
@@ -572,5 +770,27 @@ class FirestoreService {
       }
       return []; // 설정이 없으면 빈 리스트 반환
     });
+  }
+
+  // --- 5. 유저 관리 (관리자용) ---
+
+  // 승인 대기 유저 목록 스트림
+  Stream<List<Map<String, dynamic>>> getPendingUsers() {
+    return _db
+        .collection('users')
+        .where('status', isEqualTo: 'pending')
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs.map((doc) {
+            final data = doc.data();
+            data['uid'] = doc.id; // UID 포함
+            return data;
+          }).toList();
+        });
+  }
+
+  // 유저 승인
+  Future<void> approveUser(String uid) async {
+    await _db.collection('users').doc(uid).update({'status': 'approved'});
   }
 }

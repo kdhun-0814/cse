@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'dart:async'; // StreamSubscription 사용을 위해 추가
+import 'package:animate_do/animate_do.dart'; // NEW
 import 'package:flutter_slidable/flutter_slidable.dart'; // ★ 재추가
 import '../../models/group.dart';
 import '../../services/firestore_service.dart';
@@ -23,7 +24,7 @@ class _GroupListScreenState extends State<GroupListScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   bool _isAdmin = false;
   late Stream<List<Group>> _groupStream;
-  
+
   // ★ AnimatedList용 변수 (liked 필터일 때만 사용)
   final GlobalKey<AnimatedListState> _listKey = GlobalKey<AnimatedListState>();
   List<Group> _displayedLikedGroups = [];
@@ -33,7 +34,7 @@ class _GroupListScreenState extends State<GroupListScreen> {
   void initState() {
     super.initState();
     _checkAdminRole();
-    
+
     if (widget.filterType == 'liked') {
       // 찜 목록은 애니메이션 처리를 위해 수동 구독
       _subscription = _firestoreService.getGroups('liked').listen((groups) {
@@ -83,7 +84,8 @@ class _GroupListScreenState extends State<GroupListScreen> {
         // 애니메이션과 함께 제거
         _listKey.currentState?.removeItem(
           i,
-          (context, animation) => _buildAnimatedGroupItem(removedItem, animation),
+          (context, animation) =>
+              _buildAnimatedGroupItem(removedItem, animation),
           duration: const Duration(milliseconds: 500),
         );
       }
@@ -106,7 +108,7 @@ class _GroupListScreenState extends State<GroupListScreen> {
         _listKey.currentState?.insertItem(i);
       }
     }
-    
+
     // 비어있게 된 경우 화면 갱신을 위해 setState 호출 필요할 수 있음
     if (_displayedLikedGroups.isEmpty && newGroups.isEmpty) {
       setState(() {});
@@ -120,24 +122,29 @@ class _GroupListScreenState extends State<GroupListScreen> {
       if (_displayedLikedGroups.isEmpty && _subscription == null) {
         // 아직 로딩 전이거나 데이터 없음 (초기 상태)
         // Subscription이 있으면 데이터가 없는 것이므로 빈 화면 표시
-         return _buildEmptyView();
+        return _buildEmptyView();
       }
-      
+
       if (_displayedLikedGroups.isEmpty) {
         return _buildEmptyView();
       }
 
-      return ListView( // AnimatedList를 감싸서 패딩 등 처리
+      return ListView(
+        // AnimatedList를 감싸서 패딩 등 처리
         padding: const EdgeInsets.fromLTRB(20, 10, 20, 20),
         children: [
-           AnimatedList(
+          AnimatedList(
             key: _listKey,
             shrinkWrap: true,
             physics: const NeverScrollableScrollPhysics(), // 외부 ListView 스크롤 사용
             initialItemCount: _displayedLikedGroups.length,
             itemBuilder: (context, index, animation) {
-              if (index >= _displayedLikedGroups.length) return const SizedBox();
-              return _buildAnimatedGroupItem(_displayedLikedGroups[index], animation);
+              if (index >= _displayedLikedGroups.length)
+                return const SizedBox();
+              return _buildAnimatedGroupItem(
+                _displayedLikedGroups[index],
+                animation,
+              );
             },
           ),
         ],
@@ -146,7 +153,7 @@ class _GroupListScreenState extends State<GroupListScreen> {
 
     // 기존 로직 (전체, 내 모집)
     return StreamBuilder<List<Group>>(
-      stream: _groupStream, 
+      stream: _groupStream,
       builder: (context, snapshot) {
         // 1. 로딩 중
         if (snapshot.connectionState == ConnectionState.waiting) {
@@ -186,12 +193,12 @@ class _GroupListScreenState extends State<GroupListScreen> {
 
         // 정렬 로직: 마감된 것은 맨 뒤로
         if (widget.filterType == 'all') {
-             officialGroups = [
+          officialGroups = [
             ...officialGroups.where((g) => !g.isExpired),
             ...officialGroups.where((g) => g.isExpired),
           ];
         }
-       
+
         generalGroups = [
           // 1. 진행 중 + 찜함
           ...generalGroups.where((g) => !g.isExpired && g.isLiked),
@@ -225,12 +232,18 @@ class _GroupListScreenState extends State<GroupListScreen> {
 
             // 2. 일반 공고 리스트
             if (generalGroups.isEmpty && officialGroups.isEmpty)
-               _buildEmptyView() // 데이터는 있는데 필터링 후 없을 경우
+              _buildEmptyView() // 데이터는 있는데 필터링 후 없을 경우
             else if (generalGroups.isNotEmpty)
-              ...generalGroups.map((group) {
-                return Padding(
-                  padding: const EdgeInsets.only(bottom: 16),
-                  child: _buildGroupCard(group),
+              ...generalGroups.asMap().entries.map((entry) {
+                int index = entry.key;
+                Group group = entry.value;
+                return FadeInUp(
+                  delay: Duration(milliseconds: index * 50),
+                  duration: const Duration(milliseconds: 400),
+                  child: Padding(
+                    padding: const EdgeInsets.only(bottom: 16),
+                    child: _buildGroupCard(group),
+                  ),
                 );
               }).toList(),
           ],
@@ -248,11 +261,7 @@ class _GroupListScreenState extends State<GroupListScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          Icon(
-            Icons.assignment_outlined,
-            size: 48,
-            color: Colors.grey[300],
-          ),
+          Icon(Icons.assignment_outlined, size: 48, color: Colors.grey[300]),
           const SizedBox(height: 16),
           Text(
             emptyMsg,
@@ -278,7 +287,7 @@ class _GroupListScreenState extends State<GroupListScreen> {
   }
 
   // ... (나머지 _buildOfficialCard, _buildGroupCard, _confirmDelete 메서드는 그대로 유지)
-  
+
   // ★ 공식 공고 카드 위젯
   Widget _buildOfficialCard(Group group) {
     bool isExpired = group.isExpired;
@@ -483,7 +492,8 @@ class _GroupListScreenState extends State<GroupListScreen> {
                           overflow: TextOverflow.ellipsis,
                         ),
                       ),
-                      Padding( // 패딩 조정
+                      Padding(
+                        // 패딩 조정
                         padding: const EdgeInsets.only(left: 8),
                           child: LikeButton(
                             isLiked: group.isLiked,

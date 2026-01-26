@@ -2,9 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/notice.dart';
 import '../../services/firestore_service.dart';
-import '../../utils/toast_utils.dart';
-import '../../widgets/common/custom_loading_indicator.dart';
-import '../../widgets/common/custom_dialog.dart';
 
 class AdminNoticeManagementScreen extends StatefulWidget {
   const AdminNoticeManagementScreen({super.key});
@@ -96,6 +93,34 @@ class _AdminNoticeManagementScreenState
               });
             },
           ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert, color: Colors.black),
+            onSelected: (value) async {
+              if (value == 'reset_urgent') {
+                bool confirm = await _showConfirmDialog("모든 긴급 공지를 해제하시겠습니까?");
+                if (confirm) {
+                  await _firestoreService.resetAllUrgentNotices();
+                  if (mounted) _showSnackBar("모든 긴급 공지가 해제되었습니다.");
+                }
+              } else if (value == 'reset_important') {
+                bool confirm = await _showConfirmDialog("모든 중요 공지를 해제하시겠습니까?");
+                if (confirm) {
+                  await _firestoreService.resetAllImportantNotices();
+                  if (mounted) _showSnackBar("모든 중요 공지가 해제되었습니다.");
+                }
+              }
+            },
+            itemBuilder: (context) => [
+              const PopupMenuItem(
+                value: 'reset_urgent',
+                child: Text("🚨 모든 긴급 공지 해제"),
+              ),
+              const PopupMenuItem(
+                value: 'reset_important',
+                child: Text("⭐ 모든 중요 공지 해제"),
+              ),
+            ],
+          ),
         ],
         bottom: TabBar(
           controller: _tabController,
@@ -158,7 +183,7 @@ class _AdminNoticeManagementScreenState
               stream: _firestoreService.getAdminNotices(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CustomLoadingIndicator());
+                  return const Center(child: CircularProgressIndicator());
                 }
                 if (snapshot.hasError) {
                   return Center(child: Text("Error: ${snapshot.error}"));
@@ -291,10 +316,10 @@ class _AdminNoticeManagementScreenState
   ) async {
     if (value == 'restore') {
       await _firestoreService.restoreNotice(notice.id);
-      if (mounted) ToastUtils.show(context, "공지가 복구되었습니다.");
+      if (mounted) _showSnackBar("공지가 복구되었습니다.");
     } else if (value == 'delete') {
       await _firestoreService.deleteNotice(notice.id);
-      if (mounted) ToastUtils.show(context, "공지가 삭제(보관)되었습니다.");
+      if (mounted) _showSnackBar("공지가 삭제(보관)되었습니다.");
     } else if (value == 'push') {
       _confirmPush(notice);
     } else if (value == 'category') {
@@ -305,16 +330,23 @@ class _AdminNoticeManagementScreenState
   void _confirmPush(Notice notice) {
     showDialog(
       context: context,
-      builder: (context) => CustomDialog(
-        title: "푸시 알림 발송",
-        contentText: "'${notice.title}'\n\n이 공지의 알림을 전송하시겠습니까?",
-        cancelText: "취소",
-        confirmText: "전송",
-        onConfirm: () {
-          Navigator.pop(context);
-          _firestoreService.requestPushNotification(notice.id);
-          ToastUtils.show(context, "푸시 알림이 전송되었습니다.");
-        },
+      builder: (context) => AlertDialog(
+        title: const Text("푸시 알림 발송"),
+        content: Text("'${notice.title}'\n\n이 공지의 알림을 전송하시겠습니까?"),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(context),
+            child: const Text("취소"),
+          ),
+          TextButton(
+            onPressed: () {
+              Navigator.pop(context);
+              _firestoreService.requestPushNotification(notice.id);
+              _showSnackBar("푸시 알림 요청이 전송되었습니다.");
+            },
+            child: const Text("전송"),
+          ),
+        ],
       ),
     );
   }
@@ -329,8 +361,8 @@ class _AdminNoticeManagementScreenState
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
-          return CustomDialog(
-            title: "카테고리 변경",
+          return AlertDialog(
+            title: const Text("카테고리 변경"),
             content: DropdownButton<String>(
               value: selected,
               isExpanded: true,
@@ -341,18 +373,55 @@ class _AdminNoticeManagementScreenState
                 if (val != null) setDialogState(() => selected = val);
               },
             ),
-            cancelText: "취소",
-            confirmText: "변경",
-            onConfirm: () {
-              Navigator.pop(context);
-              _firestoreService.updateNoticeCategory(notice.id, selected);
-              ToastUtils.show(context, "카테고리가 변경되었습니다.");
-            },
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text("취소"),
+              ),
+              TextButton(
+                onPressed: () {
+                  Navigator.pop(context);
+                  _firestoreService.updateNoticeCategory(notice.id, selected);
+                  _showSnackBar("카테고리가 변경되었습니다.");
+                },
+                child: const Text("변경"),
+              ),
+            ],
           );
         },
       ),
     );
   }
 
+  void _showSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(message), duration: const Duration(seconds: 1)),
+    );
+  }
 
+  Future<bool> _showConfirmDialog(String content) async {
+    return await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+            content: Text(content),
+            actions: [
+              TextButton(
+                onPressed: () => Navigator.pop(context, false),
+                child: const Text("취소", style: TextStyle(color: Colors.grey)),
+              ),
+              TextButton(
+                onPressed: () => Navigator.pop(context, true),
+                child: const Text(
+                  "확인",
+                  style: TextStyle(
+                    color: Color(0xFF3182F6),
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+              ),
+            ],
+          ),
+        ) ??
+        false;
+  }
 }

@@ -4,7 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/notice.dart';
 import '../../screens/notice_detail_screen.dart';
 import '../../screens/notice_list_screen.dart';
-import '../common/bounceable.dart'; // Toss-style Interaction
+import '../../services/firestore_service.dart';
 
 class UrgentNoticeWidget extends StatefulWidget {
   final bool forceShow;
@@ -17,9 +17,26 @@ class UrgentNoticeWidget extends StatefulWidget {
 
 class _UrgentNoticeWidgetState extends State<UrgentNoticeWidget> {
   final PageController _pageController = PageController();
+  final FirestoreService _firestoreService = FirestoreService();
   Timer? _timer;
   int _currentPage = 0;
   List<Notice> _cachedNotices = [];
+  String _userRole = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserRole();
+  }
+
+  Future<void> _loadUserRole() async {
+    final role = await _firestoreService.getUserRole();
+    if (mounted) {
+      setState(() {
+        _userRole = role;
+      });
+    }
+  }
 
   @override
   void dispose() {
@@ -47,21 +64,17 @@ class _UrgentNoticeWidgetState extends State<UrgentNoticeWidget> {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('notices')
-          .where('is_urgent', isEqualTo: true)
+          .orderBy('date', descending: true)
+          .limit(100)
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const SizedBox.shrink();
 
         final now = DateTime.now();
-        List<Notice> urgentNotices = snapshot.data!.docs
+        final urgentNotices = snapshot.data!.docs
             .map((doc) => Notice.fromFirestore(doc, []))
-            .toList();
-        
-        // Sort by date descending
-        urgentNotices.sort((a, b) => b.date.compareTo(a.date));
-
-        // Filter by date (within 14 days)
-        urgentNotices = urgentNotices.where((n) {
+            .where((n) {
+              if (n.isUrgent != true) return false;
               try {
                 String dateStr = n.date
                     .replaceAll('.', '-')
@@ -80,13 +93,9 @@ class _UrgentNoticeWidgetState extends State<UrgentNoticeWidget> {
                 }
                 if (noticeDate != null) {
                   final diff = now.difference(noticeDate).inDays;
-                  // Allow today (0) and up to 14 days ago. 
-                  // Also allow future dates (negative diff) just in case.
-                  return diff <= 14; 
+                  return diff <= 14;
                 }
               } catch (e) {}
-              // If date parsing fails, show it anyway? No, safer to hide or show? 
-              // Original logic returned false. Keep it.
               return false;
             })
             .toList();
@@ -146,7 +155,7 @@ class _UrgentNoticeWidgetState extends State<UrgentNoticeWidget> {
           );
         }
 
-        return Container( 
+        return Container(
           clipBehavior: Clip.hardEdge,
           decoration: BoxDecoration(
             color: Colors.white,
@@ -190,31 +199,79 @@ class _UrgentNoticeWidgetState extends State<UrgentNoticeWidget> {
                         ),
                       ],
                     ),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.push(
-                          context,
-                          MaterialPageRoute(
-                            builder: (context) => const NoticeListScreen(
-                              title: "긴급 공지",
-                              themeColor: Color(0xFFD32F2F),
+                    Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        if (_userRole == 'ADMIN' && urgentNotices.isNotEmpty)
+                          IconButton(
+                            icon: const Icon(
+                              Icons.notifications_active_outlined,
+                              color: Color(0xFFD32F2F),
+                              size: 20,
+                            ),
+                            tooltip: "긴급 공지 푸시 전송",
+                            onPressed: () async {
+                              final confirm = await showDialog<bool>(
+                                context: context,
+                                builder: (ctx) => AlertDialog(
+                                  title: const Text("긴급 공지 푸시 알림"),
+                                  content: const Text(
+                                    "최신 긴급 공지에 대한 푸시 알림을 전송하시겠습니까?",
+                                  ),
+                                  actions: [
+                                    TextButton(
+                                      onPressed: () =>
+                                          Navigator.pop(ctx, false),
+                                      child: const Text("취소"),
+                                    ),
+                                    TextButton(
+                                      onPressed: () => Navigator.pop(ctx, true),
+                                      child: const Text("전송"),
+                                    ),
+                                  ],
+                                ),
+                              );
+                              if (confirm == true && mounted) {
+                                await _firestoreService.requestPushNotification(
+                                  urgentNotices.first.id,
+                                );
+                                if (mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(
+                                      content: Text("푸시 알림 요청이 전송되었습니다."),
+                                    ),
+                                  );
+                                }
+                              }
+                            },
+                          ),
+                        TextButton(
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => const NoticeListScreen(
+                                  title: "긴급 공지",
+                                  themeColor: Color(0xFFD32F2F),
+                                ),
+                              ),
+                            );
+                          },
+                          style: TextButton.styleFrom(
+                            padding: EdgeInsets.zero,
+                            minimumSize: Size.zero,
+                            tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          ),
+                          child: Text(
+                            "전체보기",
+                            style: TextStyle(
+                              color: const Color(0xFFD32F2F).withOpacity(0.7),
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
                             ),
                           ),
-                        );
-                      },
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        minimumSize: Size.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                      ),
-                      child: Text(
-                        "전체보기",
-                        style: TextStyle(
-                          color: const Color(0xFFD32F2F).withOpacity(0.7),
-                          fontSize: 13,
-                          fontWeight: FontWeight.w600,
                         ),
-                      ),
+                      ],
                     ),
                   ],
                 ),
@@ -249,7 +306,7 @@ class _UrgentNoticeWidgetState extends State<UrgentNoticeWidget> {
   }
 
   Widget _buildUrgentContent(BuildContext context, Notice notice) {
-    return Bounceable(
+    return GestureDetector(
       onTap: () {
         Navigator.push(
           context,

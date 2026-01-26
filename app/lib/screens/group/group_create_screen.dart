@@ -1,11 +1,11 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:animate_do/animate_do.dart'; // NEW
 import 'package:intl/intl.dart';
 import '../../services/firestore_service.dart';
-import '../../models/group.dart';
-import '../../utils/toast_utils.dart';
-import '../../widgets/common/custom_loading_indicator.dart';
 
 class GroupCreateScreen extends StatefulWidget {
+  // ... (rest of class)
+
   // ★ 추가: 생성이 완료되면 호출할 콜백 함수
   final VoidCallback? onGroupCreated;
 
@@ -45,7 +45,9 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
 
   Future<void> _createGroup() async {
     if (_titleController.text.isEmpty) {
-      ToastUtils.show(context, "제목을 입력해주세요.", isError: true);
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text("제목을 입력해주세요.")));
       return;
     }
 
@@ -78,7 +80,9 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
 
       if (mounted) {
         // ★ 요청하신 멘트로 수정
-        ToastUtils.show(context, "모집 만들기를 완료했어요.");
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text("모집 만들기를 완료했어요.")));
 
         // 입력창 초기화
         _titleController.clear();
@@ -95,7 +99,9 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ToastUtils.show(context, "잠시 오류가 발생했어요.: $e", isError: true);
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text("잠시 오류가 발생했어요.: $e")));
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -169,11 +175,80 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                     onChanged: (val) => setState(() => _maxMembers = val),
                   ),
                 ),
-                Text(
-                  _maxMembers >= 21 ? "제한 없음" : "${_maxMembers.toInt()}명",
-                  style: TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.bold,   
+                InkWell(
+                  onTap: () async {
+                    final TextEditingController controller =
+                        TextEditingController.fromValue(
+                          TextEditingValue(
+                            text: _maxMembers >= 21
+                                ? ""
+                                : _maxMembers.toInt().toString(),
+                            selection: TextSelection.collapsed(
+                              offset: _maxMembers >= 21
+                                  ? 0
+                                  : _maxMembers.toInt().toString().length,
+                            ),
+                          ),
+                        );
+
+                    await showDialog(
+                      context: context,
+                      builder: (context) {
+                        return AlertDialog(
+                          title: const Text("인원 수 직접 입력"),
+                          content: TextField(
+                            controller: controller,
+                            keyboardType: TextInputType.number,
+                            autofocus: true,
+                            decoration: const InputDecoration(
+                              hintText: "숫자만 입력 (21 이상은 제한없음)",
+                              suffixText: "명",
+                            ),
+                          ),
+                          actions: [
+                            TextButton(
+                              onPressed: () => Navigator.pop(context),
+                              child: const Text("취소"),
+                            ),
+                            TextButton(
+                              onPressed: () {
+                                if (controller.text.isNotEmpty) {
+                                  double? val = double.tryParse(
+                                    controller.text,
+                                  );
+                                  if (val != null) {
+                                    if (val < 1) val = 1;
+                                    if (val > 21) val = 21; // Slider max에 맞춤
+                                    setState(() => _maxMembers = val!);
+                                  }
+                                }
+                                Navigator.pop(context);
+                              },
+                              child: const Text("확인"),
+                            ),
+                          ],
+                        );
+                      },
+                    );
+                  },
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 12,
+                      vertical: 8,
+                    ),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFFF2F4F6),
+                      borderRadius: BorderRadius.circular(8),
+                    ),
+                    child: Text(
+                      _maxMembers >= 21 ? "제한 없음" : "${_maxMembers.toInt()}명",
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF333D4B),
+                      ),
+                    ),
                   ),
                 ),
               ],
@@ -237,7 +312,9 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
               decoration: BoxDecoration(
                 color: const Color(0xFFE8F3FF),
                 borderRadius: BorderRadius.circular(12),
-                border: Border.all(color: const Color(0xFF3182F6).withOpacity(0.3)),
+                border: Border.all(
+                  color: const Color(0xFF3182F6).withOpacity(0.3),
+                ),
               ),
               child: Row(
                 children: [
@@ -286,27 +363,38 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
 
           const SizedBox(height: 40),
 
-          SizedBox(
-            width: double.infinity,
-            child: ElevatedButton(
-              onPressed: _isLoading ? null : _createGroup,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3182F6),
-                padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(16),
+          ElasticIn(
+            // Toss-style bounce
+            delay: const Duration(milliseconds: 300),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton(
+                onPressed: _isLoading ? null : _createGroup,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: const Color(0xFF3182F6),
+                  padding: const EdgeInsets.symmetric(vertical: 16),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16),
+                  ),
                 ),
-              ),
-              child: _isLoading
-                  ? const CustomLoadingIndicator(color: Colors.white)
-                  : const Text(
-                      "모집 만들기",
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: Colors.white,
+                child: _isLoading
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        "모집 만들기",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.bold,
+                          color: Colors.white,
+                        ),
                       ),
-                    ),
+              ),
             ),
           ),
           const SizedBox(height: 40),

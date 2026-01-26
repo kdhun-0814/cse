@@ -1,12 +1,12 @@
-name: Daily Crawler
+name: Weekly DB Maintenance
 
 on:
   schedule:
-    - cron: '*/30 * * * *' # 매 30분마다 실행
-  workflow_dispatch: # 수동 실행 가능
+    - cron: '0 0 * * *' # 매일 자정 (UTC 기준)
+  workflow_dispatch:
 
 jobs:
-  crawl:
+  maintenance:
     runs-on: ubuntu-latest
     
     steps:
@@ -23,11 +23,9 @@ jobs:
         python -m pip install --upgrade pip
         pip install -r ai_server/requirements.txt
 
-    - name: Run Crawler
+    - name: Run Cleanup Script
       env:
         FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
-        GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
       run: |
         cd ai_server
-        python crawler.py
-        python cafeteria_scraper.py
+        python db_maintenance.py

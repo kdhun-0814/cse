@@ -3,10 +3,17 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'screens/main_nav_screen.dart';
 import 'screens/welcome_screen.dart';
-import 'widgets/common/custom_loading_indicator.dart';
+import 'services/fcm_service.dart';
 
-class AuthGate extends StatelessWidget {
+class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
+
+  @override
+  State<AuthGate> createState() => _AuthGateState();
+}
+
+class _AuthGateState extends State<AuthGate> {
+  bool _fcmInitialized = false;
 
   @override
   Widget build(BuildContext context) {
@@ -16,17 +23,17 @@ class AuthGate extends StatelessWidget {
         // 1. 로그인 상태 확인 로그
         if (!snapshot.hasData) {
           print("🔍 AuthGate: 로그아웃 상태임 -> WelcomeScreen 이동");
+          _fcmInitialized = false; // Reset FCM state
           return const WelcomeScreen();
         }
 
         print("🔍 AuthGate: 로그인 됨 (UID: ${snapshot.data!.uid}) -> DB 조회 시작");
 
-        // 2. 유저 정보 실시간 감지 (Future -> Stream 변경)
-        return StreamBuilder<DocumentSnapshot>(
-          stream: FirebaseFirestore.instance
+        return FutureBuilder<DocumentSnapshot>(
+          future: FirebaseFirestore.instance
               .collection('users')
               .doc(snapshot.data!.uid)
-              .snapshots(),
+              .get(),
           builder: (context, userSnapshot) {
             // 2. 로딩 상태 확인 로그
             if (userSnapshot.connectionState == ConnectionState.waiting) {
@@ -34,28 +41,16 @@ class AuthGate extends StatelessWidget {
               return const Scaffold(
                 backgroundColor: Colors.white,
                 body: Center(
-                  child: CustomLoadingIndicator(),
+                  child: CircularProgressIndicator(color: Color(0xFF3182F6)),
                 ),
               );
             }
 
-            // 3. 에러 또는 데이터 없음 (회원가입 진행 중일 수 있음)
+            // 3. 에러 또는 데이터 없음
             if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
-              print("⏳ AuthGate: 유저 정보 없음 (가입 진행 중 예상) -> 대기 화면 표시");
-              // 회원가입 직후 Firestore 생성 전 단계일 수 있으므로 로그아웃 시키지 않음
-              return const Scaffold(
-                backgroundColor: Colors.white,
-                body: Center(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      CustomLoadingIndicator(),
-                      SizedBox(height: 16),
-                      Text("가입 처리 중입니다...", style: TextStyle(color: Colors.grey)),
-                    ],
-                  ),
-                ),
-              );
+              print("🚨 AuthGate: DB에 유저 정보 없음! -> 로그아웃 시킴");
+              FirebaseAuth.instance.signOut();
+              return const WelcomeScreen();
             }
 
             final userData = userSnapshot.data!.data() as Map<String, dynamic>;
@@ -65,6 +60,20 @@ class AuthGate extends StatelessWidget {
             // 4. 승인 여부 분기
             if (status == 'approved') {
               print("🚀 AuthGate: 승인 완료 -> 메인 화면 이동");
+
+              // FCM 초기화 (한 번만)
+              if (!_fcmInitialized) {
+                _fcmInitialized = true;
+                FCMService()
+                    .initialize()
+                    .then((_) {
+                      print("✅ FCM 초기화 완료");
+                    })
+                    .catchError((e) {
+                      print("❌ FCM 초기화 실패: $e");
+                    });
+              }
+
               return const MainNavScreen();
             }
 

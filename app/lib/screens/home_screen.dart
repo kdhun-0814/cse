@@ -1,11 +1,7 @@
 ﻿import 'package:flutter/material.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'admin/admin_approval_screen.dart'; // Admin Approval Screen Import
 import 'package:flutter/services.dart';
 import 'dart:ui'; // for lerpDouble
 import 'package:table_calendar/table_calendar.dart';
-import '../widgets/common/custom_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firestore_service.dart';
@@ -15,14 +11,16 @@ import '../widgets/home/urgent_notice_widget.dart';
 import '../widgets/home/important_notice_widget.dart'; // NEW
 import '../widgets/home/hot_notice_widget.dart';
 import '../widgets/home/notice_search_widget.dart'; // NEW
+import '../widgets/home/cafeteria_widget.dart'; // NEW
 import '../widgets/home/category_grid_widget.dart';
-import '../widgets/common/custom_loading_indicator.dart';
 import '../models/home_widget_config.dart';
 import 'widget_management_screen.dart';
 import 'admin/write_notice_screen.dart'; // NEW
 import 'admin/admin_notice_management_screen.dart'; // NEW
+import 'admin/admin_user_list_screen.dart'; // NEW
 import 'calendar_screen.dart';
-import '../widgets/common/bounceable.dart';
+import 'my_info_screen.dart'; // NEW
+import 'notification_screen.dart'; // 알림 센터
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -37,11 +35,11 @@ class _HomeScreenState extends State<HomeScreen>
 
   // 기본 위젯 설정 (초기값 및 폴백)
   final List<HomeWidgetConfig> _defaultWidgets = [
-    HomeWidgetConfig(id: 'notice_search', isVisible: true),
+    HomeWidgetConfig(id: 'urgent_notice', isVisible: true),
+    HomeWidgetConfig(id: 'notice_search', isVisible: true), // NEW
+    HomeWidgetConfig(id: 'important_notice', isVisible: true), // NEW
     HomeWidgetConfig(id: 'calendar', isVisible: true),
     HomeWidgetConfig(id: 'categories', isVisible: true),
-    HomeWidgetConfig(id: 'urgent_notice', isVisible: true),
-    HomeWidgetConfig(id: 'important_notice', isVisible: true),
     HomeWidgetConfig(id: 'hot_notice', isVisible: true),
   ];
 
@@ -249,12 +247,55 @@ class _HomeScreenState extends State<HomeScreen>
         ),
         centerTitle: true,
         actions: [
-          IconButton(
-            icon: const Icon(
-              Icons.notifications_none_rounded,
-              color: Color(0xFF4E5968),
-            ),
-            onPressed: () {},
+          // 알림 아이콘 (배지 추가)
+          StreamBuilder<int>(
+            stream: _firestoreService.getTotalUnreadCount(),
+            builder: (context, snapshot) {
+              int count = snapshot.data ?? 0;
+              return Stack(
+                children: [
+                  IconButton(
+                    icon: const Icon(
+                      Icons.notifications_rounded,
+                      color: Color(0xFF4E5968),
+                    ),
+                    onPressed: () {
+                      Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                          builder: (context) => const NotificationScreen(),
+                        ),
+                      );
+                    },
+                  ),
+                  if (count > 0)
+                    Positioned(
+                      right: 8,
+                      top: 8,
+                      child: Container(
+                        padding: const EdgeInsets.all(4),
+                        decoration: const BoxDecoration(
+                          color: Colors.red,
+                          shape: BoxShape.circle,
+                        ),
+                        constraints: const BoxConstraints(
+                          minWidth: 16,
+                          minHeight: 16,
+                        ),
+                        child: Text(
+                          count > 99 ? '99+' : '$count',
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                          textAlign: TextAlign.center,
+                        ),
+                      ),
+                    ),
+                ],
+              );
+            },
           ),
           IconButton(
             icon: const Icon(
@@ -273,7 +314,7 @@ class _HomeScreenState extends State<HomeScreen>
         ],
       ),
       body: _isLoadingWidgets
-          ? const Center(child: CustomLoadingIndicator())
+          ? const Center(child: CircularProgressIndicator())
           : Stack(
               children: [
                 ReorderableListView(
@@ -391,6 +432,8 @@ class _HomeScreenState extends State<HomeScreen>
         return const NoticeSearchWidget();
       case 'important_notice':
         return ImportantNoticeWidget(forceShow: false);
+      case 'cafeteria': // NEW
+        return const CafeteriaWidget(forceShow: false);
       case 'calendar':
         return _buildTodaySchedule();
       case 'categories':
@@ -491,6 +534,9 @@ class _HomeScreenState extends State<HomeScreen>
           ),
           _buildDrawerItem(Icons.person_outline_rounded, '내 정보 관리', () {
             // 내 정보 관리 페이지로 이동
+            Navigator.of(context).push(
+              MaterialPageRoute(builder: (context) => const MyInfoScreen()),
+            );
           }),
           // 홈 위젯 관리 메뉴 제거 (왼쪽 상단으로 이동)
           // 관리자 메뉴
@@ -516,10 +562,10 @@ class _HomeScreenState extends State<HomeScreen>
                 ),
               );
             }),
-            _buildDrawerItem(Icons.how_to_reg_outlined, '가입 승인 관리', () {
+            _buildDrawerItem(Icons.verified_user_outlined, '유저 승인', () {
               Navigator.of(context).push(
                 MaterialPageRoute(
-                  builder: (context) => const AdminApprovalScreen(),
+                  builder: (context) => const AdminUserListScreen(),
                 ),
               );
             }),
@@ -543,8 +589,8 @@ class _HomeScreenState extends State<HomeScreen>
                           true;
                     }
 
-                    return CustomDialog(
-                      title: "알림 설정",
+                    return AlertDialog(
+                      title: const Text("알림 설정"),
                       content: Row(
                         mainAxisAlignment: MainAxisAlignment.spaceBetween,
                         children: [
@@ -558,8 +604,12 @@ class _HomeScreenState extends State<HomeScreen>
                           ),
                         ],
                       ),
-                      confirmText: "닫기",
-                      onConfirm: () => Navigator.pop(context),
+                      actions: [
+                        TextButton(
+                          onPressed: () => Navigator.pop(context),
+                          child: const Text("닫기"),
+                        ),
+                      ],
                     );
                   },
                 );
@@ -631,7 +681,7 @@ class _HomeScreenState extends State<HomeScreen>
         Widget eventContent;
         if (todayEvents.isEmpty) {
           eventContent = const Text(
-            "오늘은 일정이 없어요",
+            "오늘은 일정이 없어요.",
             style: TextStyle(fontSize: 15, color: Color(0xFF8B95A1)),
           );
         } else {
@@ -694,14 +744,13 @@ class _HomeScreenState extends State<HomeScreen>
           );
         }
 
-        return Bounceable(
+        return GestureDetector(
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const CalendarScreen()),
             );
           },
-          borderRadius: BorderRadius.circular(24),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
