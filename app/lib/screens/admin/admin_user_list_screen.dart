@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../services/firestore_service.dart';
+import '../../utils/toast_utils.dart';
+import '../../widgets/common/custom_dialog.dart';
+import '../../widgets/common/bounceable.dart';
 
 class AdminUserListScreen extends StatefulWidget {
   const AdminUserListScreen({super.key});
@@ -59,16 +62,23 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
                   style: const TextStyle(fontWeight: FontWeight.bold),
                 ),
                 subtitle: Text(user['email'] ?? ''),
-                trailing: ElevatedButton(
-                  onPressed: () => _approveUser(user),
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3182F6),
-                    foregroundColor: Colors.white,
-                    shape: RoundedRectangleBorder(
+                trailing: Bounceable(
+                  onTap: () => _approveUser(user),
+                  borderRadius: BorderRadius.circular(8),
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3182F6),
                       borderRadius: BorderRadius.circular(8),
                     ),
+                    child: const Text(
+                      "승인",
+                      style: TextStyle(
+                        color: Colors.white,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
                   ),
-                  child: const Text("승인"),
                 ),
               );
             },
@@ -83,36 +93,20 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
 
     final shouldApprove = await showDialog<bool>(
       context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text("가입 승인"),
-        content: Text(
-          "${user['name']} (${user['student_id']}) 님의\n가입을 승인하시겠습니까?",
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: const Text("취소", style: TextStyle(color: Colors.grey)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: const Text(
-              "승인",
-              style: TextStyle(
-                color: Color(0xFF3182F6),
-                fontWeight: FontWeight.bold,
-              ),
-            ),
-          ),
-        ],
+      builder: (ctx) => CustomDialog(
+        title: "가입 승인",
+        contentText: "${user['name']} (${user['student_id']}) 님의\n가입을 승인하시겠습니까?",
+        cancelText: "취소",
+        confirmText: "승인",
+        onCancel: () => Navigator.pop(ctx, false),
+        onConfirm: () => Navigator.pop(ctx, true),
       ),
     );
 
     if (shouldApprove == true && mounted) {
       await _firestoreService.approveUser(user['uid']);
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("승인되었습니다.")));
+        ToastUtils.show(context, "승인되었습니다.");
       }
     }
   }

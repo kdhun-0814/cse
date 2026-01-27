@@ -2,6 +2,9 @@
 import 'package:animate_do/animate_do.dart'; // NEW
 import 'package:intl/intl.dart';
 import '../../services/firestore_service.dart';
+import '../../utils/toast_utils.dart';
+import '../../widgets/common/custom_dialog.dart';
+import '../../widgets/common/bounceable.dart';
 
 class GroupCreateScreen extends StatefulWidget {
   // ... (rest of class)
@@ -45,9 +48,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
 
   Future<void> _createGroup() async {
     if (_titleController.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("제목을 입력해주세요.")));
+      ToastUtils.show(context, "제목을 입력해주세요.", isError: true);
       return;
     }
 
@@ -80,9 +81,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
 
       if (mounted) {
         // ★ 요청하신 멘트로 수정
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text("모집 만들기를 완료했어요.")));
+        ToastUtils.show(context, "모집 만들기를 완료했어요.");
 
         // 입력창 초기화
         _titleController.clear();
@@ -99,9 +98,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(SnackBar(content: Text("잠시 오류가 발생했어요.: $e")));
+        ToastUtils.show(context, "잠시 오류가 발생했어요.: $e", isError: true);
       }
     } finally {
       if (mounted) setState(() => _isLoading = false);
@@ -175,7 +172,7 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                     onChanged: (val) => setState(() => _maxMembers = val),
                   ),
                 ),
-                InkWell(
+                Bounceable(
                   onTap: () async {
                     final TextEditingController controller =
                         TextEditingController.fromValue(
@@ -194,8 +191,8 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                     await showDialog(
                       context: context,
                       builder: (context) {
-                        return AlertDialog(
-                          title: const Text("인원 수 직접 입력"),
+                        return CustomDialog(
+                          title: "인원 수 직접 입력",
                           content: TextField(
                             controller: controller,
                             keyboardType: TextInputType.number,
@@ -205,28 +202,20 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
                               suffixText: "명",
                             ),
                           ),
-                          actions: [
-                            TextButton(
-                              onPressed: () => Navigator.pop(context),
-                              child: const Text("취소"),
-                            ),
-                            TextButton(
-                              onPressed: () {
-                                if (controller.text.isNotEmpty) {
-                                  double? val = double.tryParse(
-                                    controller.text,
-                                  );
-                                  if (val != null) {
-                                    if (val < 1) val = 1;
-                                    if (val > 21) val = 21; // Slider max에 맞춤
-                                    setState(() => _maxMembers = val!);
-                                  }
-                                }
-                                Navigator.pop(context);
-                              },
-                              child: const Text("확인"),
-                            ),
-                          ],
+                          cancelText: "취소",
+                          confirmText: "확인",
+                          onCancel: () => Navigator.pop(context),
+                          onConfirm: () {
+                            if (controller.text.isNotEmpty) {
+                              double? val = double.tryParse(controller.text);
+                              if (val != null) {
+                                if (val < 1) val = 1;
+                                if (val > 21) val = 21;
+                                setState(() => _maxMembers = val!);
+                              }
+                            }
+                            Navigator.pop(context);
+                          },
                         );
                       },
                     );
@@ -368,32 +357,35 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
             delay: const Duration(milliseconds: 300),
             child: SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _createGroup,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3182F6),
+              child: Bounceable(
+                onTap: _isLoading ? null : _createGroup,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3182F6),
                     borderRadius: BorderRadius.circular(16),
                   ),
+                  alignment: Alignment.center,
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            color: Colors.white,
+                            strokeWidth: 2,
+                          ),
+                        )
+                      : const Text(
+                          "모집 만들기",
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
+                        ),
                 ),
-                child: _isLoading
-                    ? const SizedBox(
-                        height: 20,
-                        width: 20,
-                        child: CircularProgressIndicator(
-                          color: Colors.white,
-                          strokeWidth: 2,
-                        ),
-                      )
-                    : const Text(
-                        "모집 만들기",
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
-                        ),
-                      ),
               ),
             ),
           ),

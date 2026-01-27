@@ -1,6 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../services/firestore_service.dart';
+import '../services/firestore_service.dart';
+import '../utils/toast_utils.dart';
+import '../widgets/common/custom_dialog.dart';
+import '../widgets/common/bounceable.dart';
+import '../widgets/common/jelly_button.dart';
+import 'approval_waiting_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -14,8 +21,23 @@ class _SignupScreenState extends State<SignupScreen> {
   final _pwCtrl = TextEditingController(); // 비번
   final _lastNameCtrl = TextEditingController(); // 성
   final _firstNameCtrl = TextEditingController(); // 이름
+  final _tokenCtrl = TextEditingController(); // 학과 인증 코드
 
   bool _isLoading = false;
+  bool _isObscure = true; // 비밀번호 숨김 여부
+
+  // 약관 동의 상태
+  bool _isServiceTermChecked = false;
+  bool _isPrivacyTermChecked = false;
+
+  bool get _isAllChecked => _isServiceTermChecked && _isPrivacyTermChecked;
+
+  void _toggleAll(bool? value) {
+    setState(() {
+      _isServiceTermChecked = value ?? false;
+      _isPrivacyTermChecked = value ?? false;
+    });
+  }
 
   Future<void> _signUp() async {
     // 1. 기본 입력 확인
@@ -23,18 +45,14 @@ class _SignupScreenState extends State<SignupScreen> {
         _pwCtrl.text.isEmpty ||
         _lastNameCtrl.text.isEmpty ||
         _firstNameCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("모든 정보를 입력해주세요.")));
+      ToastUtils.show(context, "모든 정보를 입력해주세요.", isError: true);
       return;
     }
 
     // 2. 학번 자릿수 검사 (10자리)
     int idLength = _studentIdCtrl.text.length;
     if (idLength != 9 && idLength != 10) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("정확한 학번을 입력해주세요.")));
+      ToastUtils.show(context, "정확한 학번을 입력해주세요.", isError: true);
       return;
     }
 
@@ -42,14 +60,36 @@ class _SignupScreenState extends State<SignupScreen> {
     String password = _pwCtrl.text;
     RegExp passwordRegex = RegExp(r'^(?=.*[A-Za-z])(?=.*\d).{8,}$');
     if (!passwordRegex.hasMatch(password)) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("비밀번호는 영문+숫자 포함 8자리 이상이어야 합니다.")),
-      );
+      ToastUtils.show(context, "비밀번호는 영문+숫자 포함 8자리 이상이어야 합니다.", isError: true);
+      return;
+    }
+
+    // 4. 학과 인증 코드 검증
+    String token = _tokenCtrl.text.trim();
+    if (token.isEmpty) {
+      ToastUtils.show(context, "학과 인증 코드를 입력해주세요.", isError: true);
+      return;
+    }
+
+    // 5. 약관 동의 확인
+    if (!_isAllChecked) {
+      ToastUtils.show(context, "필수 약관에 모두 동의해주세요.", isError: true);
       return;
     }
 
     setState(() => _isLoading = true);
+
     try {
+      // 인증 코드 확인
+      bool isValidToken = await FirestoreService().verifySignupToken(token);
+      if (!isValidToken) {
+        if (mounted) {
+          ToastUtils.show(context, "학과 인증 코드가 올바르지 않습니다.", isError: true);
+          setState(() => _isLoading = false);
+        }
+        return;
+      }
+
       // 학교 도메인 자동 완성
       String email = "${_studentIdCtrl.text.trim()}@gnu.ac.kr";
 
@@ -88,46 +128,21 @@ class _SignupScreenState extends State<SignupScreen> {
           });
 
       if (mounted) {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (ctx) => AlertDialog(
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            title: const Text(
-              "가입 신청 완료",
-              style: TextStyle(fontWeight: FontWeight.bold),
-            ),
-            content: const Text(
-              "회원가입 신청이 완료되었습니다.\n\n관리자 승인 후 앱 이용이 가능합니다.\n(승인/반려 결과는 별도 안내되지 않습니다)",
-            ),
-            actions: [
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(ctx);
-                  Navigator.pop(context);
-                },
-                child: const Text(
-                  "확인",
-                  style: TextStyle(
-                    color: Color(0xFF3182F6),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
+        ToastUtils.show(context, "회원가입 신청이 완료되었어요.");
+        Navigator.pushAndRemoveUntil(
+          context,
+          MaterialPageRoute(
+            builder: (context) => const ApprovalWaitingScreen(),
           ),
+          (route) => false,
         );
       }
     } catch (e) {
       String message = "가입 실패: $e";
       if (e is FirebaseAuthException && e.code == 'email-already-in-use') {
-        message = "이미 가입된 학번(이메일)입니다.";
+        message = "이미 가입된 학번(아이디)입니다.";
       }
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(SnackBar(content: Text(message)));
+      ToastUtils.show(context, message, isError: true);
     } finally {
       if (mounted) setState(() => _isLoading = false);
     }
@@ -169,7 +184,7 @@ class _SignupScreenState extends State<SignupScreen> {
               const SizedBox(height: 10),
               const Center(
                 child: Text(
-                  "학번과 실명을 입력해주세요.\n관리자 승인 후 이용 가능합니다.",
+                  "실제 학번과 실명을 입력해주세요.\n관리자 승인 후 정상적인 앱 이용이 가능해요.",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontSize: 15,
@@ -211,7 +226,7 @@ class _SignupScreenState extends State<SignupScreen> {
                   ),
                   prefixIcon: Icon(
                     Icons.badge_outlined,
-                    color: Color(0xFFB0B8C1),
+                    color: Color(0xFF3182F6),
                   ),
                 ),
               ),
@@ -288,9 +303,64 @@ class _SignupScreenState extends State<SignupScreen> {
               const SizedBox(height: 8),
               TextField(
                 controller: _pwCtrl,
-                obscureText: true,
-                decoration: const InputDecoration(
+                obscureText: _isObscure,
+                decoration: InputDecoration(
                   hintText: "영문+숫자 포함 8자리 이상",
+                  hintStyle: const TextStyle(color: Color(0xFFC5C8CE)),
+                  border: const OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                  ),
+                  enabledBorder: const OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                    borderSide: BorderSide(color: Color(0xFFE5E8EB)),
+                  ),
+                  focusedBorder: const OutlineInputBorder(
+                    borderRadius: BorderRadius.all(Radius.circular(12)),
+                    borderSide: BorderSide(color: Color(0xFF3182F6)),
+                  ),
+                  prefixIcon: const Icon(
+                    Icons.lock_outline_rounded,
+                    color: Color(0xFF3182F6),
+                  ),
+                  suffixIcon: Padding(
+                    padding: const EdgeInsets.all(12.0),
+                    child: JellyButton(
+                      isActive: !_isObscure,
+                      activeIcon: Icons.visibility_outlined,
+                      inactiveIcon: Icons.visibility_off_outlined,
+                      activeColor: const Color(0xFF3182F6),
+                      inactiveColor: const Color(0xFFB0B8C1),
+                      size: 24,
+                      onTap: () {
+                        setState(() {
+                          _isObscure = !_isObscure;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 24),
+
+              // 4. 학과 인증 코드
+              const Text(
+                "학과 인증 코드",
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF333D4B),
+                ),
+              ),
+              const SizedBox(height: 4),
+              const Text(
+                "학생회에서 별도로 안내 받은 인증코드를 입력해주세요.",
+                style: TextStyle(fontSize: 12, color: Color(0xFF8B95A1)),
+              ),
+              const SizedBox(height: 8),
+              TextField(
+                controller: _tokenCtrl,
+                decoration: const InputDecoration(
+                  hintText: "인증 코드 입력",
                   hintStyle: TextStyle(color: Color(0xFFC5C8CE)),
                   border: OutlineInputBorder(
                     borderRadius: BorderRadius.all(Radius.circular(12)),
@@ -304,50 +374,219 @@ class _SignupScreenState extends State<SignupScreen> {
                     borderSide: BorderSide(color: Color(0xFF3182F6)),
                   ),
                   prefixIcon: Icon(
-                    Icons.lock_outline_rounded,
-                    color: Color(0xFFB0B8C1),
+                    Icons.verified_user_outlined,
+                    color: Color(0xFF3182F6),
                   ),
                 ),
               ),
 
+              const SizedBox(height: 24),
+
+              // 약관 동의 섹션
+              _buildTermSection(),
+
               const SizedBox(height: 40),
 
               // 4. 가입 버튼
+              // 4. 가입 버튼
               SizedBox(
                 width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _isLoading ? null : _signUp,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: const Color(0xFF3182F6),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
+                child: Bounceable(
+                  onTap: _isLoading ? null : _signUp,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    height: 52,
+                    decoration: BoxDecoration(
+                      color: const Color(0xFF3182F6),
                       borderRadius: BorderRadius.circular(16),
                     ),
+                    alignment: Alignment.center,
+                    child: _isLoading
+                        ? const SizedBox(
+                            width: 20,
+                            height: 20,
+                            child: CircularProgressIndicator(
+                              color: Colors.white,
+                              strokeWidth: 2,
+                            ),
+                          )
+                        : const Text(
+                            "가입 신청하기",
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
                   ),
-                  child: _isLoading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
-                          ),
-                        )
-                      : const Text(
-                          "가입 신청하기",
-                          style: TextStyle(
-                            color: Colors.white,
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
                 ),
               ),
               const SizedBox(height: 20),
             ],
           ),
         ),
+      ),
+    );
+  }
+
+
+  Widget _buildTermSection() {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        // 전체 동의
+        // 전체 동의
+        Bounceable(
+          onTap: () => _toggleAll(!_isAllChecked),
+          borderRadius: BorderRadius.circular(8),
+          child: Container(
+            color: Colors.transparent, // 터치 영역 확보
+            padding: const EdgeInsets.symmetric(vertical: 8),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 24,
+                  height: 24,
+                  child: Checkbox(
+                    value: _isAllChecked,
+                    activeColor: const Color(0xFF3182F6),
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    onChanged: _toggleAll,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const Text(
+                  "약관 전체 동의",
+                  style: TextStyle(
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                    color: Color(0xFF333D4B),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Divider(height: 1, color: Color(0xFFF2F4F6)),
+        const SizedBox(height: 8),
+
+        // 서비스 이용약관
+        _buildTermItem(
+          "서비스 이용약관 동의 (필수)",
+          _isServiceTermChecked,
+          (val) => setState(() => _isServiceTermChecked = val ?? false),
+          _showServiceTerms,
+        ),
+        
+        // 개인정보 수집 이용
+        _buildTermItem(
+          "개인정보 수집 및 이용 동의 (필수)",
+          _isPrivacyTermChecked,
+          (val) => setState(() => _isPrivacyTermChecked = val ?? false),
+          _showPrivacyTerms,
+        ),
+      ],
+    );
+  }
+
+  Widget _buildTermItem(
+    String title,
+    bool isChecked,
+    ValueChanged<bool?> onChanged,
+    VoidCallback onDetail,
+  ) {
+    return Bounceable(
+      onTap: () => onChanged(!isChecked),
+      borderRadius: BorderRadius.circular(8),
+      child: Container(
+        color: Colors.transparent, // 터치 영역 확보
+        padding: const EdgeInsets.symmetric(vertical: 6),
+        child: Row(
+          children: [
+            SizedBox(
+              width: 24,
+              height: 24,
+              child: Checkbox(
+                value: isChecked,
+                activeColor: const Color(0xFF3182F6),
+                side: const BorderSide(color: Color(0xFFD1D6DB)),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(4),
+                ),
+                onChanged: onChanged,
+              ),
+            ),
+            const SizedBox(width: 8),
+            Expanded(
+              child: Text(
+                title,
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: Color(0xFF4E5968),
+                ),
+              ),
+            ),
+            Bounceable(
+              onTap: onDetail,
+              borderRadius: BorderRadius.circular(12),
+              child: const Padding(
+                padding: EdgeInsets.all(4),
+                child: Icon(
+                  Icons.chevron_right_rounded,
+                  color: Color(0xFFB0B8C1),
+                  size: 20,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _showServiceTerms() {
+    showDialog(
+      context: context,
+      builder: (context) => CustomDialog(
+        title: "서비스 이용약관",
+        content: const Text(
+          "(예시) 본 서비스는 경상국립대학교 컴퓨터공학부 학생들을 위한 커뮤니티 및 정보 제공 앱입니다.\n\n"
+          "제1조 (목적)\n"
+          "이 약관은 MY_CSE(이하 '서비스')의 이용 조건 및 절차에 관한 사항을 규정함을 목적으로 합니다.\n\n"
+          "제2조 (회원의 의무)\n"
+          "회원은 본인의 학번과 실명으로 가입해야 하며, 허위 정보를 입력해서는 안 됩니다.\n\n"
+          "제3조 (서비스 이용)\n"
+          "관련 법령 및 학칙을 준수하며 서비스를 이용해야 합니다.\n\n"
+          "...",
+          style: TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF4E5968)),
+        ),
+        confirmText: "확인",
+        onConfirm: () => Navigator.pop(context),
+      ),
+    );
+  }
+
+  void _showPrivacyTerms() {
+    showDialog(
+      context: context,
+      builder: (context) => CustomDialog(
+        title: "개인정보 수집 및 이용 동의",
+        content: const Text(
+          "(예시) MY_CSE 앱은 원활한 서비스 제공을 위해 다음과 같이 개인정보를 수집합니다.\n\n"
+          "1. 수집 항목\n"
+          "- 성명, 학번, 이메일, 암호화된 비밀번호\n\n"
+          "2. 수집 목적\n"
+          "- 본인 확인, 학적 확인, 공지사항 푸시 알림 전송\n\n"
+          "3. 보유 기간\n"
+          "- 회원 탈퇴 시까지 보유하며, 탈퇴 시 지체 없이 파기합니다.\n\n"
+          "동의를 거부할 권리가 있으나, 거부 시 회원가입이 불가능합니다.",
+          style: TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF4E5968)),
+        ),
+        confirmText: "확인",
+        onConfirm: () => Navigator.pop(context),
       ),
     );
   }

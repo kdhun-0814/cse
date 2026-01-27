@@ -1,5 +1,6 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import '../../widgets/common/custom_loading_indicator.dart';
@@ -142,7 +143,7 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
                 : const Text(
                     "등록",
                     style: TextStyle(
-                      color: Color(0xFF2196F3),
+                      color: Color(0xFF3182F6), // Toss Blue
                       fontWeight: FontWeight.bold,
                       fontSize: 16,
                     ),
@@ -157,50 +158,142 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // 카테고리 선택
-              const Text("카테고리", style: TextStyle(fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              DropdownButtonFormField<String>(
-                value: _category,
-                items: _categories
-                    .map(
-                      (cat) => DropdownMenuItem(value: cat, child: Text(cat)),
-                    )
-                    .toList(),
-                onChanged: (val) => setState(() => _category = val!),
-                decoration: InputDecoration(
-                  filled: true,
-                  fillColor: const Color(0xFFF2F4F6),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
-                  ),
+              // 카테고리 선택 (카드형 UI)
+              Container(
+                padding: const EdgeInsets.all(20),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: const Color(0xFFE5E8EB)),
+                ),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      "카테고리",
+                      style: TextStyle(
+                        fontWeight: FontWeight.bold,
+                        fontSize: 16,
+                      ),
+                    ),
+                    const SizedBox(height: 12),
+                    DropdownButtonFormField<String>(
+                      value: _category,
+                      items: _categories
+                          .map(
+                            (cat) => DropdownMenuItem(value: cat, child: Text(cat)),
+                          )
+                          .toList(),
+                      onChanged: (val) => setState(() => _category = val!),
+                      dropdownColor: Colors.white,
+                      elevation: 4,
+                      icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                      borderRadius: BorderRadius.circular(16),
+                      decoration: InputDecoration(
+                        filled: true,
+                        fillColor: const Color(0xFFF9FAFB),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(
+                            color: Color(0xFF3182F6),
+                            width: 1.5,
+                          ),
+                        ),
+                        contentPadding: const EdgeInsets.symmetric(
+                          horizontal: 16,
+                          vertical: 14,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(height: 16),
+
+              // 설정 (중요 / 긴급) - 카드형 UI
+              Container(
+                padding: const EdgeInsets.symmetric(vertical: 8),
+                decoration: BoxDecoration(
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(24),
+                  border: Border.all(color: const Color(0xFFE5E8EB)),
+                ),
+                child: Column(
+                  children: [
+                    SwitchListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 4,
+                      ),
+                      title: const Row(
+                        children: [
+                          Icon(
+                            Icons.star_rounded,
+                            color: Color(0xFFFFD180), // Important Color
+                            size: 24,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            "중요 공지로 등록",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      value: _isImportant,
+                      activeColor: const Color(0xFF3182F6),
+                      onChanged: (val) {
+                        HapticFeedback.lightImpact();
+                        setState(() => _isImportant = val);
+                      },
+                    ),
+                    const Divider(height: 1, indent: 20, endIndent: 20),
+                    SwitchListTile(
+                      contentPadding: const EdgeInsets.symmetric(
+                        horizontal: 20,
+                        vertical: 4,
+                      ),
+                      title: const Row(
+                        children: [
+                          Icon(
+                            Icons.campaign_rounded,
+                            color: Color(0xFFD32F2F), // Urgent Color
+                            size: 24,
+                          ),
+                          SizedBox(width: 8),
+                          Text(
+                            "긴급 공지로 등록",
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              fontSize: 16,
+                            ),
+                          ),
+                        ],
+                      ),
+                      subtitle: const Padding(
+                        padding: EdgeInsets.only(left: 32, top: 4),
+                        child: Text(
+                          "7일간 홈 화면 최상단에 노출됩니다.",
+                          style: TextStyle(fontSize: 13, color: Color(0xFF8B95A1)),
+                        ),
+                      ),
+                      value: _isUrgent,
+                      activeColor: const Color(0xFF3182F6),
+                      onChanged: (val) {
+                        HapticFeedback.lightImpact();
+                        setState(() => _isUrgent = val);
+                      },
+                    ),
+                  ],
                 ),
               ),
               const SizedBox(height: 24),
-
-              // 설정 (중요 / 긴급)
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text(
-                  "⭐ 중요 공지로 등록",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                value: _isImportant,
-                onChanged: (val) => setState(() => _isImportant = val),
-              ),
-              SwitchListTile(
-                contentPadding: EdgeInsets.zero,
-                title: const Text(
-                  "🚨 긴급 공지로 등록",
-                  style: TextStyle(fontWeight: FontWeight.bold),
-                ),
-                subtitle: const Text("7일간 홈 화면 최상단에 노출됩니다."),
-                value: _isUrgent,
-                onChanged: (val) => setState(() => _isUrgent = val),
-              ),
-              const Divider(),
-              const SizedBox(height: 16),
 
               // 제목
               const Text("제목", style: TextStyle(fontWeight: FontWeight.bold)),
@@ -212,10 +305,14 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
                 decoration: InputDecoration(
                   hintText: "제목을 입력하세요",
                   filled: true,
-                  fillColor: const Color(0xFFF2F4F6),
-                  border: OutlineInputBorder(
+                  fillColor: Colors.white,
+                  enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+                    borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF3182F6), width: 1.5),
                   ),
                   contentPadding: const EdgeInsets.symmetric(
                     horizontal: 16,
@@ -237,10 +334,14 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
                 decoration: InputDecoration(
                   hintText: "내용을 입력하세요",
                   filled: true,
-                  fillColor: const Color(0xFFF2F4F6),
-                  border: OutlineInputBorder(
+                  fillColor: Colors.white,
+                  enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+                    borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF3182F6), width: 1.5),
                   ),
                   contentPadding: const EdgeInsets.all(16),
                 ),
@@ -259,10 +360,14 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
                 decoration: InputDecoration(
                   hintText: "URL을 입력하세요 (예: https://...)",
                   filled: true,
-                  fillColor: const Color(0xFFF2F4F6),
-                  border: OutlineInputBorder(
+                  fillColor: Colors.white,
+                  enabledBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(12),
-                    borderSide: BorderSide.none,
+                    borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(12),
+                    borderSide: const BorderSide(color: Color(0xFF3182F6), width: 1.5),
                   ),
                 ),
                 keyboardType: TextInputType.url,

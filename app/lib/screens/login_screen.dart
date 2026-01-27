@@ -1,7 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/services.dart';
+import '../utils/toast_utils.dart';
+import '../widgets/common/custom_dialog.dart';
+import '../widgets/common/bounceable.dart';
+import '../widgets/common/jelly_button.dart';
 import 'signup_screen.dart';
+import 'approval_waiting_screen.dart';
 import '../auth_gate.dart'; // AuthGate 임포트 추가
 import 'package:google_fonts/google_fonts.dart';
 
@@ -16,21 +22,19 @@ class _LoginScreenState extends State<LoginScreen> {
   final _studentIdCtrl = TextEditingController(); // 학번 입력
   final _pwCtrl = TextEditingController(); // 비번 입력
   bool _isLoading = false;
+  bool _isObscure = true; // 비밀번호 숨김 여부
 
   Future<void> _login() async {
     // 1. 입력값이 비어있는지 확인
     if (_studentIdCtrl.text.isEmpty || _pwCtrl.text.isEmpty) {
-      ScaffoldMessenger.of(
-        context,
-      ).showSnackBar(const SnackBar(content: Text("학번과 비밀번호를 모두 입력해주세요.")));
+      ToastUtils.show(context, "학번과 비밀번호를 모두 입력해주세요.", isError: true);
       return;
     }
 
     // 2. 학번 자릿수(10자리) 검사
-    if (_studentIdCtrl.text.length != 10) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text("학번은 10자리여야 합니다. 올바르게 입력해주세요.")),
-      );
+    // 학번 길이 체크 9자리 또는 10자리
+    if (_studentIdCtrl.text.length != 9 && _studentIdCtrl.text.length != 10) {
+      ToastUtils.show(context, "학번을 정확히 입력해주세요.", isError: true);
       return;
     }
 
@@ -60,33 +64,13 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // 관리자 계정 예외 처리 (0000...)
       if (status != 'approved' && email != "0000000000@gnu.ac.kr") {
-        await FirebaseAuth.instance.signOut();
-
         if (mounted) {
-          showDialog(
-            context: context,
-            builder: (ctx) => AlertDialog(
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(16),
-              ),
-              title: const Text(
-                "가입 대기 중",
-                style: TextStyle(fontWeight: FontWeight.bold),
-              ),
-              content: const Text("관리자의 가입 승인이 필요합니다.\n승인 완료 후 로그인해주세요."),
-              actions: [
-                TextButton(
-                  onPressed: () => Navigator.pop(ctx),
-                  child: const Text(
-                    "확인",
-                    style: TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Color(0xFF3182F6),
-                    ),
-                  ),
-                ),
-              ],
+          Navigator.pushAndRemoveUntil(
+            context,
+            MaterialPageRoute(
+              builder: (context) => const ApprovalWaitingScreen(),
             ),
+            (route) => false,
           );
         }
         return;
@@ -162,7 +146,7 @@ class _LoginScreenState extends State<LoginScreen> {
               "MY_CSE",
 
               style: GoogleFonts.outfit(
-                fontSize: 25,
+                fontSize: 36,
                 fontWeight: FontWeight.w900,
                 color: const Color(0xFF3182F6),
                 letterSpacing: 1.2,
@@ -173,7 +157,7 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: 10),
             const Text(
               "경상국립대학교 IT 공과대학 컴퓨터공학부",
-              style: TextStyle(fontSize: 13, color: Colors.grey),
+              style: TextStyle(fontSize: 15, color: Colors.grey),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 40),
@@ -209,68 +193,103 @@ class _LoginScreenState extends State<LoginScreen> {
             // 비밀번호 입력
             TextField(
               controller: _pwCtrl,
-              obscureText: true,
-              decoration: const InputDecoration(
+              obscureText: _isObscure,
+              decoration: InputDecoration(
                 labelText: "비밀번호",
-                border: OutlineInputBorder(
+                border: const OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
-                enabledBorder: OutlineInputBorder(
+                enabledBorder: const OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                   borderSide: BorderSide(color: Color(0xFFE5E8EB)),
                 ),
-                focusedBorder: OutlineInputBorder(
+                focusedBorder: const OutlineInputBorder(
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                   borderSide: BorderSide(color: Color(0xFF3182F6)),
                 ),
-                prefixIcon: Icon(
+                prefixIcon: const Icon(
                   Icons.lock_outline_rounded,
                   color: Color(0xFFB0B8C1),
+                ),
+                suffixIcon: Padding(
+                  padding: const EdgeInsets.all(12.0),
+                  child: JellyButton(
+                    isActive: !_isObscure,
+                    activeIcon: Icons.visibility_outlined,
+                    inactiveIcon: Icons.visibility_off_outlined,
+                    activeColor: const Color(0xFF3182F6),
+                    inactiveColor: const Color(0xFFB0B8C1),
+                    size: 24,
+                    onTap: () {
+                      setState(() {
+                        _isObscure = !_isObscure;
+                      });
+                    },
+                  ),
                 ),
               ),
             ),
             const SizedBox(height: 24),
 
             // 로그인 버튼
-            ElevatedButton(
-              onPressed: _isLoading ? null : _login,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: const Color(0xFF3182F6),
+            // 로그인 버튼
+            Bounceable(
+              onTap: _isLoading ? null : _login,
+              borderRadius: BorderRadius.circular(16),
+              child: Container(
+                width: double.infinity,
                 padding: const EdgeInsets.symmetric(vertical: 16),
-                shape: RoundedRectangleBorder(
+                decoration: BoxDecoration(
+                  color: const Color(0xFF3182F6),
                   borderRadius: BorderRadius.circular(16),
                 ),
-                elevation: 0,
+                alignment: Alignment.center,
+                child: _isLoading
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : const Text(
+                        "로그인",
+                        style: TextStyle(
+                          color: Colors.white,
+                          fontSize: 16,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
               ),
-              child: _isLoading
-                  ? const SizedBox(
-                      width: 20,
-                      height: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
-                      ),
-                    )
-                  : const Text(
-                      "로그인",
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                      ),
-                    ),
             ),
             const SizedBox(height: 16),
 
             // 회원가입 버튼
-            TextButton(
-              onPressed: () => Navigator.push(
+            Bounceable(
+              onTap: () => Navigator.push(
                 context,
                 MaterialPageRoute(builder: (_) => const SignupScreen()),
               ),
-              child: const Text(
-                "계정이 없으신가요? 회원가입",
-                style: TextStyle(color: Color(0xFF8B95A1)),
+              child: Padding(
+                padding: const EdgeInsets.all(8.0),
+                child: RichText(
+                  textAlign: TextAlign.center,
+                  text: const TextSpan(
+                    text: "계정이 없으신가요? ",
+                    style: TextStyle(color: Color(0xFF8B95A1), fontSize: 13),
+                    children: [
+                      TextSpan(
+                        text: "회원가입",
+                        style: TextStyle(
+                          color: Color(0xFF3182F6),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 13,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
               ),
             ),
           ],

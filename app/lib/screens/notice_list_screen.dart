@@ -102,70 +102,23 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
           ),
         ),
         actions: [
-          // 0. 푸시 알림 전송 버튼 (관리자 전용, 카테고리별)
-          if (_userRole == 'ADMIN' &&
-              widget.title != '전체' &&
-              widget.title != '긴급 공지' &&
-              widget.title != '중요 공지')
+          // 1. 관리자용 글쓰기 버튼 (먼저 표시)
+          if (_userRole == 'ADMIN') ...[
             IconButton(
-              icon: const Icon(
-                Icons.notifications_active_outlined,
-                color: Color(0xFF191F28),
-              ),
-              tooltip: "${widget.title} 푸시 전송",
               onPressed: () async {
-                // Get the latest notice from this category
-                final snapshot = await FirebaseFirestore.instance
-                    .collection('notices')
-                    .where('category', isEqualTo: widget.title)
-                    .orderBy('date', descending: true)
-                    .limit(1)
-                    .get();
-
-                if (snapshot.docs.isEmpty) {
-                  if (mounted) {
-                    ScaffoldMessenger.of(
-                      context,
-                    ).showSnackBar(const SnackBar(content: Text("공지가 없습니다.")));
-                  }
-                  return;
-                }
-
-                final noticeId = snapshot.docs.first.id;
-                final noticeTitle = snapshot.docs.first.data()['title'] ?? '';
-
-                final confirm = await showDialog<bool>(
-                  context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: Text("${widget.title} 푸시 알림"),
-                    content: Text(
-                      "'$noticeTitle'\n\n이 공지에 대한 푸시 알림을 전송하시겠습니까?",
-                    ),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text("취소"),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text("전송"),
-                      ),
-                    ],
+                await Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) => const WriteNoticeScreen(),
                   ),
                 );
-
-                if (confirm == true && mounted) {
-                  await _firestoreService.requestPushNotification(noticeId);
-                  if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(content: Text("푸시 알림 요청이 전송되었습니다.")),
-                    );
-                  }
-                }
               },
+              icon: const Icon(Icons.add_rounded, color: Color(0xFF191F28)),
             ),
+            const SizedBox(width: 4),
+          ],
 
-          // 1. 모두 읽음 처리 버튼 (카테고리 뷰일 때만)
+          // 2. 모두 읽음 처리 버튼 (카테고리 뷰일 때만)
           if (widget.title != '전체' &&
               widget.title != '긴급 공지' &&
               widget.title != '중요 공지')
@@ -178,88 +131,24 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
               onPressed: () async {
                 final confirm = await showDialog<bool>(
                   context: context,
-                  builder: (ctx) => AlertDialog(
-                    title: Text("'${widget.title}' 공지 모두 읽음"),
-                    content: const Text("전체 공지를\n모두 읽음 처리하시겠습니까?"),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, false),
-                        child: const Text(
-                          "취소",
-                          style: TextStyle(color: Colors.grey),
-                        ),
-                      ),
-                      TextButton(
-                        onPressed: () => Navigator.pop(ctx, true),
-                        child: const Text(
-                          "확인",
-                          style: TextStyle(color: Color(0xFF3182F6)),
-                        ),
-                      ),
-                    ],
+                  builder: (ctx) => CustomDialog(
+                    title: "'${widget.title}' 공지 모두 읽음",
+                    contentText: "전체 공지를\n모두 읽음 처리할까요?",
+                    cancelText: "취소",
+                    confirmText: "확인",
+                    onCancel: () => Navigator.pop(ctx, false),
+                    onConfirm: () => Navigator.pop(ctx, true),
                   ),
                 );
 
                 if (confirm == true) {
                   await _firestoreService.markAllNoticesAsRead(widget.title);
                   if (mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(
-                      const SnackBar(
-                        content: Text("모두 읽음 처리되었습니다."),
-                        duration: Duration(seconds: 1),
-                      ),
-                    );
+                    ToastUtils.show(context, "모두 읽음 처리되었어요.");
                   }
                 }
               },
             ),
-
-          // 1. 알림 토글 버튼 (모든 유저, 전체 카테고리 제외)
-          if (widget.title != "전체")
-            StreamBuilder<bool>(
-              stream: _firestoreService.getCategoryPushSetting(widget.title),
-              builder: (context, snapshot) {
-                bool isEnabled = snapshot.data ?? true;
-                return IconButton(
-                  onPressed: () {
-                    _firestoreService.toggleCategoryPushSetting(
-                      widget.title,
-                      !isEnabled,
-                    );
-                    ToastUtils.show(
-                      context,
-                      !isEnabled
-                          ? "${widget.title} 알림이 켜졌어요."
-                          : "${widget.title} 알림이 꺼졌어요.",
-                    );
-                  },
-                  icon: Icon(
-                    isEnabled
-                        ? Icons.notifications_active_rounded
-                        : Icons.notifications_off_rounded,
-                    color: isEnabled
-                        ? widget.themeColor
-                        : const Color(0xFFB0B8C1),
-                  ),
-                );
-              },
-            ),
-
-          // 2. 관리자용 글쓰기 버튼
-          if (_userRole == 'ADMIN') ...[
-            const SizedBox(width: 4),
-            IconButton(
-              onPressed: () async {
-                await Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (context) => const WriteNoticeScreen(),
-                  ),
-                );
-              },
-              icon: const Icon(Icons.add_rounded, color: Color(0xFF191F28)),
-            ),
-          ],
           const SizedBox(width: 8),
         ],
       ),
@@ -590,7 +479,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
               if (confirm) {
                 await _firestoreService.deleteNotice(notice.id);
                 if (mounted) {
-                  ToastUtils.show(context, "삭제되었습니다.");
+                  ToastUtils.show(context, "공지가 삭제되었습니다.");
                 }
               }
             },

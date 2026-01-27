@@ -5,6 +5,9 @@ import '../../models/notice.dart';
 import '../../screens/notice_detail_screen.dart';
 import '../../screens/notice_list_screen.dart';
 import '../../services/firestore_service.dart';
+import '../common/bounceable.dart';
+import '../../utils/toast_utils.dart';
+import '../common/custom_dialog.dart';
 
 class UrgentNoticeWidget extends StatefulWidget {
   final bool forceShow;
@@ -213,22 +216,13 @@ class _UrgentNoticeWidgetState extends State<UrgentNoticeWidget> {
                             onPressed: () async {
                               final confirm = await showDialog<bool>(
                                 context: context,
-                                builder: (ctx) => AlertDialog(
-                                  title: const Text("긴급 공지 푸시 알림"),
-                                  content: const Text(
-                                    "최신 긴급 공지에 대한 푸시 알림을 전송하시겠습니까?",
-                                  ),
-                                  actions: [
-                                    TextButton(
-                                      onPressed: () =>
-                                          Navigator.pop(ctx, false),
-                                      child: const Text("취소"),
-                                    ),
-                                    TextButton(
-                                      onPressed: () => Navigator.pop(ctx, true),
-                                      child: const Text("전송"),
-                                    ),
-                                  ],
+                                builder: (ctx) => CustomDialog(
+                                  title: "긴급 공지 푸시 알림",
+                                  contentText: "최신 긴급 공지에 대한 푸시 알림을 전송하시겠습니까?",
+                                  cancelText: "취소",
+                                  confirmText: "전송",
+                                  onCancel: () => Navigator.pop(ctx, false),
+                                  onConfirm: () => Navigator.pop(ctx, true),
                                 ),
                               );
                               if (confirm == true && mounted) {
@@ -236,11 +230,7 @@ class _UrgentNoticeWidgetState extends State<UrgentNoticeWidget> {
                                   urgentNotices.first.id,
                                 );
                                 if (mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text("푸시 알림 요청이 전송되었습니다."),
-                                    ),
-                                  );
+                                  ToastUtils.show(context, "푸시 알림 요청이 전송되었습니다.");
                                 }
                               }
                             },
@@ -306,7 +296,7 @@ class _UrgentNoticeWidgetState extends State<UrgentNoticeWidget> {
   }
 
   Widget _buildUrgentContent(BuildContext context, Notice notice) {
-    return GestureDetector(
+    return Bounceable(
       onTap: () {
         Navigator.push(
           context,

@@ -7,7 +7,8 @@ import '../../services/firestore_service.dart';
 import '../../utils/toast_utils.dart';
 import '../../widgets/common/custom_loading_indicator.dart';
 import '../../widgets/common/custom_dialog.dart';
-import '../../widgets/like_button.dart'; // ★ 추가
+import '../../widgets/like_button.dart';
+import '../../widgets/common/bounceable.dart'; // Toss-style Interaction // ★ 추가
 import 'group_detail_screen.dart';
 import 'group_create_screen.dart';
 
@@ -157,9 +158,7 @@ class _GroupListScreenState extends State<GroupListScreen> {
       builder: (context, snapshot) {
         // 1. 로딩 중
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const Center(
-            child: CustomLoadingIndicator(),
-          );
+          return const Center(child: CustomLoadingIndicator());
         }
         // 2. 에러 발생
         if (snapshot.hasError) {
@@ -291,7 +290,8 @@ class _GroupListScreenState extends State<GroupListScreen> {
   // ★ 공식 공고 카드 위젯
   Widget _buildOfficialCard(Group group) {
     bool isExpired = group.isExpired;
-    return GestureDetector(
+
+    return Bounceable(
       onTap: isExpired
           ? null
           : () {
@@ -302,98 +302,94 @@ class _GroupListScreenState extends State<GroupListScreen> {
                 ),
               );
             },
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 200),
-        child: Opacity(
-          opacity: isExpired ? 0.6 : 1.0, // 전체 투명도 적용
-          child: Container(
-            width: 280, // 가로 고정 너비
-            padding: const EdgeInsets.all(20),
-            decoration: BoxDecoration(
+      borderRadius: BorderRadius.circular(20),
+      child: Opacity(
+        opacity: isExpired ? 0.6 : 1.0, // 전체 투명도 적용
+        child: Container(
+          width: 280, // 가로 고정 너비
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+            color: isExpired
+                ? Colors.grey[200] // 마감 시 회색 배경
+                : const Color(0xFFE8F3FF), // 활성 시 파란 배경
+            borderRadius: BorderRadius.circular(20),
+            border: Border.all(
               color: isExpired
-                  ? Colors.grey[200] // 마감 시 회색 배경
-                  : const Color(0xFFE8F3FF), // 활성 시 파란 배경
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(
-                color: isExpired
-                    ? Colors.grey[300]!
-                    : const Color(
-                        0xFF3182F6,
-                      ).withOpacity(0.3), // ★ 다시 파란색 보더로 복구
-              ),
+                  ? Colors.grey[300]!
+                  : const Color(0xFF3182F6).withOpacity(0.3), // ★ 다시 파란색 보더로 복구
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    // 뱃지
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 8,
-                        vertical: 4,
-                      ),
-                      decoration: BoxDecoration(
-                        color: isExpired
-                            ? Colors
-                                  .grey // 마감 시 회색 뱃지
-                            : const Color(0xFF3182F6),
-                        borderRadius: BorderRadius.circular(8),
-                      ),
-                      child: const Text(
-                        "학생회",
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontSize: 11,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // 뱃지
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 8,
+                      vertical: 4,
                     ),
-                    const SizedBox(height: 12),
-                    Text(
-                      group.title,
-                      style: TextStyle(
-                        fontSize: 15,
-                        fontWeight: FontWeight.bold,
-                        color: isExpired
-                            ? Colors.grey[600] // 마감 시 회색 텍스트
-                            : const Color(0xFF191F28),
-                      ),
-                      maxLines: 2,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ],
-                ),
-                Row(
-                  children: [
-                    Icon(
-                      Icons.calendar_today_rounded,
-                      size: 14,
+                    decoration: BoxDecoration(
                       color: isExpired
                           ? Colors
-                                .grey // 마감 시 회색 아이콘
+                                .grey // 마감 시 회색 뱃지
                           : const Color(0xFF3182F6),
+                      borderRadius: BorderRadius.circular(8),
                     ),
-                    const SizedBox(width: 6),
-                    Text(
-                      isExpired
-                          ? "마감됨"
-                          : "D-${group.deadline.difference(DateTime.now()).inDays}",
+                    child: const Text(
+                      "학생회",
                       style: TextStyle(
-                        fontSize: 13,
+                        color: Colors.white,
+                        fontSize: 11,
                         fontWeight: FontWeight.bold,
-                        color: isExpired
-                            ? Colors
-                                  .grey // 마감 시 회색 텍스트
-                            : const Color(0xFF3182F6),
                       ),
                     ),
-                  ],
-                ),
-              ],
-            ),
+                  ),
+                  const SizedBox(height: 12),
+                  Text(
+                    group.title,
+                    style: TextStyle(
+                      fontSize: 15,
+                      fontWeight: FontWeight.bold,
+                      color: isExpired
+                          ? Colors.grey[600] // 마감 시 회색 텍스트
+                          : const Color(0xFF191F28),
+                    ),
+                    maxLines: 2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
+              ),
+              Row(
+                children: [
+                  Icon(
+                    Icons.calendar_today_rounded,
+                    size: 14,
+                    color: isExpired
+                        ? Colors
+                              .grey // 마감 시 회색 아이콘
+                        : const Color(0xFF3182F6),
+                  ),
+                  const SizedBox(width: 6),
+                  Text(
+                    isExpired
+                        ? "마감됨"
+                        : "D-${group.deadline.difference(DateTime.now()).inDays}",
+                    style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.bold,
+                      color: isExpired
+                          ? Colors
+                                .grey // 마감 시 회색 텍스트
+                          : const Color(0xFF3182F6),
+                    ),
+                  ),
+                ],
+              ),
+            ],
           ),
         ),
       ),
@@ -413,7 +409,9 @@ class _GroupListScreenState extends State<GroupListScreen> {
             onPressed: (context) {
               _confirmDelete(group);
             },
-            backgroundColor: const Color(0xFFE93D3D).withOpacity(0.8), // 브랜드 레드 + 투명도
+            backgroundColor: const Color(
+              0xFFE93D3D,
+            ).withOpacity(0.8), // 브랜드 레드 + 투명도
             foregroundColor: Colors.white,
             borderRadius: BorderRadius.circular(20),
             child: Container(
@@ -429,10 +427,7 @@ class _GroupListScreenState extends State<GroupListScreen> {
                   SizedBox(height: 4),
                   Text(
                     "삭제 (관리자)",
-                    style: TextStyle(
-                      fontSize: 10,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -440,7 +435,7 @@ class _GroupListScreenState extends State<GroupListScreen> {
           ),
         ],
       ),
-      child: GestureDetector(
+      child: Bounceable(
         onTap: isExpired
             ? null
             : () {
@@ -451,120 +446,118 @@ class _GroupListScreenState extends State<GroupListScreen> {
                   ),
                 );
               },
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          child: Opacity(
-            opacity: isExpired ? 0.7 : 1.0,
-            child: Container(
-              padding: const EdgeInsets.all(20),
-              decoration: BoxDecoration(
-                color: isExpired ? Colors.grey[200] : Colors.white,
-                borderRadius: BorderRadius.circular(20),
-                border: Border.all(
-                  color: isExpired
-                      ? Colors.transparent
-                      : const Color(0xFFE5E8EB), // ★ 보더 추가
+        borderRadius: BorderRadius.circular(20),
+        child: Opacity(
+          opacity: isExpired ? 0.7 : 1.0,
+          child: Container(
+            padding: const EdgeInsets.all(20),
+            decoration: BoxDecoration(
+              color: isExpired ? Colors.grey[200] : Colors.white,
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(
+                color: isExpired
+                    ? Colors.transparent
+                    : const Color(0xFFE5E8EB), // ★ 보더 추가
+              ),
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withOpacity(0.03),
+                  blurRadius: 8,
+                  offset: const Offset(0, 2),
                 ),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.03),
-                    blurRadius: 8,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // 1. 제목 & 찜 버튼
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Text(
-                          group.title,
-                          style: const TextStyle(
-                            fontSize: 15,
-                            fontWeight: FontWeight.bold,
-                            color: Color(0xFF191F28),
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                      Padding(
-                        // 패딩 조정
-                        padding: const EdgeInsets.only(left: 8),
-                          child: LikeButton(
-                            isLiked: group.isLiked,
-                            likeCount: group.likeCount,
-                            enabled: !isExpired, // 마감된 경우 비활성화
-                            onTap: () {
-                              _firestoreService.toggleGroupLike(
-                                group.id,
-                                group.isLiked,
-                              );
-                            },
-                          ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 8),
-
-                  // 2. 해시태그
-                  Wrap(
-                    spacing: 6,
-                    children: group.hashtags
-                        .map(
-                          (tag) => Text(
-                            tag,
-                            style: TextStyle(
-                              color: isExpired
-                                  ? Colors.grey
-                                  : const Color(0xFF3182F6),
-                              fontWeight: FontWeight.w600,
-                              fontSize: 11,
-                            ),
-                          ),
-                        )
-                        .toList(),
-                  ),
-                  const SizedBox(height: 12),
-
-                  // 3. 정보 (인원, 마감일)
-                  Row(
-                    children: [
-                      Icon(
-                        Icons.people_rounded,
-                        size: 16,
-                        color: Colors.grey[600],
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        group.maxMembers == -1
-                            ? "제한 없음"
-                            : "${group.maxMembers}명 모집",
-                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
-                      ),
-                      const SizedBox(width: 12),
-                      Container(width: 1, height: 10, color: Colors.grey[300]),
-                      const SizedBox(width: 12),
-                      Text(
-                        isExpired
-                            ? "마감됨"
-                            : "D-${group.deadline.difference(DateTime.now()).inDays}",
-                        style: TextStyle(
-                          color: isExpired
-                              ? Colors.grey
-                              : const Color(0xFFFF4E4E),
+              ],
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                // 1. 제목 & 찜 버튼
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Text(
+                        group.title,
+                        style: const TextStyle(
+                          fontSize: 15,
                           fontWeight: FontWeight.bold,
-                          fontSize: 13,
+                          color: Color(0xFF191F28),
                         ),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
                       ),
-                    ],
-                  ),
-                ],
-              ),
+                    ),
+                    Padding(
+                      // 패딩 조정
+                      padding: const EdgeInsets.only(left: 8),
+                      child: LikeButton(
+                        isLiked: group.isLiked,
+                        likeCount: group.likeCount,
+                        enabled: !isExpired, // 마감된 경우 비활성화
+                        onTap: () {
+                          _firestoreService.toggleGroupLike(
+                            group.id,
+                            group.isLiked,
+                          );
+                        },
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+
+                // 2. 해시태그
+                Wrap(
+                  spacing: 6,
+                  children: group.hashtags
+                      .map(
+                        (tag) => Text(
+                          tag,
+                          style: TextStyle(
+                            color: isExpired
+                                ? Colors.grey
+                                : const Color(0xFF3182F6),
+                            fontWeight: FontWeight.w600,
+                            fontSize: 11,
+                          ),
+                        ),
+                      )
+                      .toList(),
+                ),
+                const SizedBox(height: 12),
+
+                // 3. 정보 (인원, 마감일)
+                Row(
+                  children: [
+                    Icon(
+                      Icons.people_rounded,
+                      size: 16,
+                      color: Colors.grey[600],
+                    ),
+                    const SizedBox(width: 4),
+                    Text(
+                      group.maxMembers == -1
+                          ? "제한 없음"
+                          : "${group.maxMembers}명 모집",
+                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                    ),
+                    const SizedBox(width: 12),
+                    Container(width: 1, height: 10, color: Colors.grey[300]),
+                    const SizedBox(width: 12),
+                    Text(
+                      isExpired
+                          ? "마감됨"
+                          : "D-${group.deadline.difference(DateTime.now()).inDays}",
+                      style: TextStyle(
+                        color: isExpired
+                            ? Colors.grey
+                            : const Color(0xFFFF4E4E),
+                        fontWeight: FontWeight.bold,
+                        fontSize: 13,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
             ),
           ),
         ),

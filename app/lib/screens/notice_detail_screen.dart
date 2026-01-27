@@ -9,6 +9,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../utils/toast_utils.dart';
 import '../widgets/common/jelly_button.dart';
 import '../widgets/common/custom_dialog.dart';
+import '../widgets/common/bounceable.dart';
 
 class NoticeDetailScreen extends StatefulWidget {
   final Notice notice;
@@ -103,25 +104,19 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
               onPressed: () {
                 showDialog(
                   context: context,
-                  builder: (context) => AlertDialog(
-                    title: const Text("푸시 알림"),
-                    content: const Text("이 공지의 푸시 알림을 전송하시겠습니까?"),
-                    actions: [
-                      TextButton(
-                        onPressed: () => Navigator.pop(context),
-                        child: const Text("취소"),
-                      ),
-                      TextButton(
-                        onPressed: () {
-                          Navigator.pop(context);
-                          _firestoreService.requestPushNotification(
-                            widget.notice.id,
-                          );
-                          ToastUtils.show(context, "푸시 알림이 전송되었습니다.");
-                        },
-                        child: const Text("전송"),
-                      ),
-                    ],
+                  builder: (context) => CustomDialog(
+                    title: "푸시 알림",
+                    contentText: "이 공지의 푸시 알림을 전송하시겠습니까?",
+                    cancelText: "취소",
+                    confirmText: "전송",
+                    onCancel: () => Navigator.pop(context),
+                    onConfirm: () {
+                      Navigator.pop(context);
+                      _firestoreService.requestPushNotification(
+                        widget.notice.id,
+                      );
+                      ToastUtils.show(context, "푸시 알림이 전송되었습니다.");
+                    },
                   ),
                 );
               },
@@ -282,7 +277,7 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
                     ),
                     const SizedBox(height: 12),
                     ...widget.notice.files.map((file) {
-                      return InkWell(
+                      return Bounceable(
                         onTap: () async {
                           final Uri url = Uri.parse(file['url'] ?? '');
                           if (await canLaunchUrl(url)) {
@@ -292,6 +287,7 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
                             );
                           }
                         },
+                        borderRadius: BorderRadius.circular(8),
                         child: Padding(
                           padding: const EdgeInsets.symmetric(vertical: 6),
                           child: Row(
@@ -356,8 +352,8 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
             Row(
               children: [
                 Expanded(
-                  child: OutlinedButton(
-                    onPressed: () async {
+                  child: Bounceable(
+                    onTap: () async {
                       try {
                         if (widget.notice.link.isNotEmpty) {
                           Uri url = Uri.parse(widget.notice.link);
@@ -377,33 +373,38 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
                         }
                       } catch (e) {
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text("링크를 열 수 없습니다: $e")),
+                          ToastUtils.show(
+                            context,
+                            "링크를 열 수 없습니다: $e",
+                            isError: true,
                           );
                         }
                       }
                     },
-                    style: OutlinedButton.styleFrom(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      side: const BorderSide(color: Color(0xFFE5E8EB)),
-                      shape: RoundedRectangleBorder(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: const Color(0xFFE5E8EB)),
                         borderRadius: BorderRadius.circular(12),
+                        color: Colors.white,
                       ),
-                    ),
-                    child: const Text(
-                      "원본 공지 보기",
-                      style: TextStyle(
-                        color: Color(0xFF4E5968),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                      alignment: Alignment.center,
+                      child: const Text(
+                        "원본 공지 보기",
+                        style: TextStyle(
+                          color: Color(0xFF4E5968),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
-                  child: ElevatedButton(
-                    onPressed: () async {
+                  child: Bounceable(
+                    onTap: () async {
                       const String mainUrl =
                           "https://www.gnu.ac.kr/cse/na/ntt/selectNttList.do?mi=17093&bbsId=4753";
                       try {
@@ -418,26 +419,29 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
                         }
                       } catch (e) {
                         if (context.mounted) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text("학과 페이지를 열 수 없습니다.")),
+                          ToastUtils.show(
+                            context,
+                            "학과 페이지를 열 수 없습니다.",
+                            isError: true,
                           );
                         }
                       }
                     },
-                    style: ElevatedButton.styleFrom(
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 16),
-                      backgroundColor: const Color(0xFFF2F4F6),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
+                      decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
+                        color: const Color(0xFFF2F4F6),
                       ),
-                    ),
-                    child: const Text(
-                      "학과 공지 가기",
-                      style: TextStyle(
-                        color: Color(0xFF333D4B),
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
+                      alignment: Alignment.center,
+                      child: const Text(
+                        "학과 공지 가기",
+                        style: TextStyle(
+                          color: Color(0xFF333D4B),
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
+                        ),
                       ),
                     ),
                   ),

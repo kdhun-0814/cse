@@ -4,6 +4,7 @@ import '../../services/firestore_service.dart';
 import '../../models/group.dart';
 import '../../utils/toast_utils.dart';
 import '../../widgets/common/custom_loading_indicator.dart';
+import '../../widgets/common/bounceable.dart';
 
 class GroupEditScreen extends StatefulWidget {
   final Group group;
@@ -307,25 +308,28 @@ class _GroupEditScreenState extends State<GroupEditScreen> {
 
             SizedBox(
               width: double.infinity,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _updateGroup,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3182F6),
+              child: Bounceable(
+                onTap: _isLoading ? null : _updateGroup,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  width: double.infinity,
                   padding: const EdgeInsets.symmetric(vertical: 16),
-                  shape: RoundedRectangleBorder(
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3182F6),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                ),
-                child: _isLoading
-                    ? const CustomLoadingIndicator(color: Colors.white)
-                    : const Text(
-                        "수정 완료",
-                        style: TextStyle(
-                          fontSize: 15,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                  alignment: Alignment.center,
+                  child: _isLoading
+                      ? const CustomLoadingIndicator(color: Colors.white)
+                      : const Text(
+                          "수정 완료",
+                          style: TextStyle(
+                            fontSize: 15,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
+                ),
               ),
             ),
             const SizedBox(height: 40),

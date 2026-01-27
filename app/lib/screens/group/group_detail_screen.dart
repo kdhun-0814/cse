@@ -403,8 +403,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    GestureDetector(
+                    Bounceable(
                       onTap: () => _openExternalLink(group),
+                      borderRadius: BorderRadius.circular(12),
                       child: Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(12),
@@ -545,28 +546,19 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             child: Bounceable(
                               onTap: _deleteGroup,
                               borderRadius: BorderRadius.circular(12),
-                              child: AbsorbPointer(
-                                child: ElevatedButton(
-                                  onPressed: () {},
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    foregroundColor: Colors.red,
-                                    elevation: 0,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 16,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      side: const BorderSide(
-                                        color: Color(0xFFE5E8EB),
-                                      ),
-                                    ),
-                                  ),
-                                  child: const Text(
-                                    "모집 삭제하기",
-                                    style: TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFE5E8EB)),
+                                ),
+                                alignment: Alignment.center,
+                                child: const Text(
+                                  "모집 삭제하기",
+                                  style: TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Colors.red,
                                   ),
                                 ),
                               ),
@@ -575,32 +567,21 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Bounceable(
-                              onTap: group.isManuallyClosed
-                                  ? null
-                                  : _closeGroup,
+                              onTap: group.isManuallyClosed ? null : _closeGroup,
                               borderRadius: BorderRadius.circular(12),
-                              child: AbsorbPointer(
-                                child: ElevatedButton(
-                                  onPressed: () {},
-                                  style: ElevatedButton.styleFrom(
-                                    backgroundColor: Colors.white,
-                                    foregroundColor: const Color(0xFF191F28),
-                                    elevation: 0,
-                                    padding: const EdgeInsets.symmetric(
-                                      vertical: 16,
-                                    ),
-                                    shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(12),
-                                      side: const BorderSide(
-                                        color: Color(0xFFE5E8EB),
-                                      ),
-                                    ),
-                                  ),
-                                  child: Text(
-                                    group.isManuallyClosed ? "마감완료" : "마감하기",
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.bold,
-                                    ),
+                              child: Container(
+                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                decoration: BoxDecoration(
+                                  color: Colors.white,
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: const Color(0xFFE5E8EB)),
+                                ),
+                                alignment: Alignment.center,
+                                child: Text(
+                                  group.isManuallyClosed ? "마감완료" : "마감하기",
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.bold,
+                                    color: Color(0xFF191F28),
                                   ),
                                 ),
                               ),
@@ -613,27 +594,24 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                             ? null
                             : () => _openExternalLink(group),
                         borderRadius: BorderRadius.circular(12),
-                        child: AbsorbPointer(
-                          child: ElevatedButton(
-                            onPressed: () {},
-                            style: ElevatedButton.styleFrom(
-                              backgroundColor: const Color(0xFF3182F6),
-                              padding: const EdgeInsets.symmetric(vertical: 16),
-                              shape: RoundedRectangleBorder(
-                                borderRadius: BorderRadius.circular(12),
-                              ),
-                            ),
-                            child: Text(
-                              group.isExpired
-                                  ? "이미 마감된 모집이에요."
-                                  : (group.linkUrl == null
-                                        ? "신청 링크가 없어요."
-                                        : "신청하러 가기 (외부 폼)"),
-                              style: const TextStyle(
-                                fontSize: 15,
-                                fontWeight: FontWeight.bold,
-                                color: Colors.white,
-                              ),
+                        child: Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.symmetric(vertical: 16),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFF3182F6),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            group.isExpired
+                                ? "이미 마감된 모집이에요."
+                                : (group.linkUrl == null
+                                      ? "신청 링크가 없어요."
+                                      : "신청하러 가기 (외부 폼)"),
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.white,
                             ),
                           ),
                         ),

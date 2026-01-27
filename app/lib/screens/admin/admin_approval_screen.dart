@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../../services/firestore_service.dart';
 import '../../widgets/common/bounceable.dart';
 import '../../utils/toast_utils.dart';
 import 'package:intl/intl.dart';
+import '../../widgets/common/custom_dialog.dart';
 
 class AdminApprovalScreen extends StatefulWidget {
   const AdminApprovalScreen({super.key});
@@ -36,19 +38,14 @@ class _AdminApprovalScreenState extends State<AdminApprovalScreen> {
     // 확인 다이얼로그
     bool? confirm = await showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("가입 거절"),
-        content: Text("$name 님의 가입 요청을 거절하시겠습니까?\n거절 시 해당 요청은 삭제됩니다."),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text("취소", style: TextStyle(color: Colors.grey)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text("거절(삭제)", style: TextStyle(color: Colors.red)),
-          ),
-        ],
+      builder: (context) => CustomDialog(
+        title: "가입 거절",
+        contentText: "$name 님의 가입 요청을 거절하시겠습니까?\n거절 시 해당 요청은 삭제됩니다.",
+        cancelText: "취소",
+        confirmText: "거절(삭제)",
+        isDestructive: true,
+        onCancel: () => Navigator.pop(context, false),
+        onConfirm: () => Navigator.pop(context, true),
       ),
     );
 
@@ -62,6 +59,40 @@ class _AdminApprovalScreenState extends State<AdminApprovalScreen> {
         if (mounted) {
           ToastUtils.show(context, "거절 처리 중 오류가 발생했습니다.", isError: true);
         }
+      }
+    }
+  }
+
+  // 전체 승인 처리
+  Future<void> _approveAllUsers() async {
+    // 1. 확인 다이얼로그
+    bool? confirm = await showDialog(
+      context: context,
+      builder: (context) => CustomDialog(
+        title: "전체 승인",
+        contentText: "대기 중인 모든 사용자를 승인하시겠습니까?\n이 작업은 되돌릴 수 없습니다.",
+        cancelText: "취소",
+        confirmText: "전체 승인",
+        onCancel: () => Navigator.pop(context, false),
+        onConfirm: () => Navigator.pop(context, true),
+      ),
+    );
+
+    if (confirm != true) return;
+
+    // 2. 일괄 승인 요청
+    try {
+      int count = await FirestoreService().approveAllPendingUsers();
+      if (mounted) {
+        if (count > 0) {
+          ToastUtils.show(context, "총 $count명의 가입을 일괄 승인했습니다.");
+        } else {
+          ToastUtils.show(context, "대기 중인 사용자가 없습니다.");
+        }
+      }
+    } catch (e) {
+      if (mounted) {
+        ToastUtils.show(context, "일괄 승인 중 오류가 발생했습니다: $e", isError: true);
       }
     }
   }
@@ -121,6 +152,20 @@ class _AdminApprovalScreenState extends State<AdminApprovalScreen> {
           icon: const Icon(Icons.arrow_back_ios_new_rounded, color: Color(0xFF191F28)),
           onPressed: () => Navigator.pop(context),
         ),
+        actions: [
+          TextButton(
+            onPressed: _approveAllUsers,
+            child: const Text(
+              "전체 승인",
+              style: TextStyle(
+                color: Color(0xFF3182F6),
+                fontWeight: FontWeight.bold,
+                fontSize: 16,
+              ),
+            ),
+          ),
+          const SizedBox(width: 8),
+        ],
       ),
       body: StreamBuilder<QuerySnapshot>(
         stream: _firestore

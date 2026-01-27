@@ -1,7 +1,12 @@
 ﻿import 'package:flutter/material.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'admin/admin_approval_screen.dart';
+import 'settings/notification_settings_screen.dart'; // Admin Approval Screen Import
 import 'package:flutter/services.dart';
 import 'dart:ui'; // for lerpDouble
 import 'package:table_calendar/table_calendar.dart';
+import '../widgets/common/custom_dialog.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firestore_service.dart';
@@ -13,14 +18,16 @@ import '../widgets/home/hot_notice_widget.dart';
 import '../widgets/home/notice_search_widget.dart'; // NEW
 import '../widgets/home/cafeteria_widget.dart'; // NEW
 import '../widgets/home/category_grid_widget.dart';
+import '../widgets/common/custom_loading_indicator.dart';
 import '../models/home_widget_config.dart';
 import 'widget_management_screen.dart';
 import 'admin/write_notice_screen.dart'; // NEW
 import 'admin/admin_notice_management_screen.dart'; // NEW
 import 'admin/admin_user_list_screen.dart'; // NEW
 import 'calendar_screen.dart';
-import 'my_info_screen.dart'; // NEW
-import 'notification_screen.dart'; // 알림 센터
+import 'notification_screen.dart';
+import 'my_info_screen.dart';
+import '../widgets/common/bounceable.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -35,11 +42,11 @@ class _HomeScreenState extends State<HomeScreen>
 
   // 기본 위젯 설정 (초기값 및 폴백)
   final List<HomeWidgetConfig> _defaultWidgets = [
-    HomeWidgetConfig(id: 'urgent_notice', isVisible: true),
-    HomeWidgetConfig(id: 'notice_search', isVisible: true), // NEW
-    HomeWidgetConfig(id: 'important_notice', isVisible: true), // NEW
+    HomeWidgetConfig(id: 'notice_search', isVisible: true),
     HomeWidgetConfig(id: 'calendar', isVisible: true),
     HomeWidgetConfig(id: 'categories', isVisible: true),
+    HomeWidgetConfig(id: 'urgent_notice', isVisible: true),
+    HomeWidgetConfig(id: 'important_notice', isVisible: true),
     HomeWidgetConfig(id: 'hot_notice', isVisible: true),
   ];
 
@@ -314,7 +321,7 @@ class _HomeScreenState extends State<HomeScreen>
         ],
       ),
       body: _isLoadingWidgets
-          ? const Center(child: CircularProgressIndicator())
+          ? const Center(child: CustomLoadingIndicator())
           : Stack(
               children: [
                 ReorderableListView(
@@ -470,12 +477,13 @@ class _HomeScreenState extends State<HomeScreen>
             builder: (context, snapshot) {
               String name = ''; // 로딩 중에는 빈 값
               String studentId = '';
+              Map<String, dynamic>? userData;
 
               if (snapshot.hasData && snapshot.data != null) {
-                final data = snapshot.data!.data() as Map<String, dynamic>?;
-                if (data != null) {
-                  name = "${data['last_name']}${data['first_name']}님";
-                  studentId = "${data['student_id']}";
+                userData = snapshot.data!.data() as Map<String, dynamic>?;
+                if (userData != null) {
+                  name = "${userData!['last_name']}${userData!['first_name']} 학우님";
+                  studentId = "${userData!['student_id']}";
                 }
               }
 
@@ -499,24 +507,58 @@ class _HomeScreenState extends State<HomeScreen>
                           width: 1,
                         ),
                       ),
-                      child: const CircleAvatar(
+                      child: CircleAvatar(
                         radius: 32,
-                        backgroundColor: Color(0xFFF2F4F6),
-                        child: Icon(
-                          Icons.person,
-                          size: 32,
-                          color: Color(0xFFB0B8C1),
-                        ),
+                        backgroundColor: const Color(0xFFF2F4F6),
+                        backgroundImage: userData != null && userData!['profile_image_url'] != null
+                            ? NetworkImage(userData!['profile_image_url'])
+                            : null,
+                        child: userData == null || userData!['profile_image_url'] == null
+                            ? const Icon(
+                                Icons.person,
+                                size: 32,
+                                color: Color(0xFFB0B8C1),
+                              )
+                            : null,
                       ),
                     ),
                     const SizedBox(height: 16),
-                    Text(
-                      name.isEmpty ? '불러오는 중...' : name,
-                      style: const TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 22,
-                        color: Color(0xFF191F28),
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          name.isEmpty ? '불러오는 중...' : name,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 22,
+                            color: Color(0xFF191F28),
+                          ),
+                        ),
+                        if (name.isNotEmpty) ...[
+                          const SizedBox(width: 8),
+                          Container(
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 8,
+                              vertical: 4,
+                            ),
+                            decoration: BoxDecoration(
+                              color: userData?['role'] == 'ADMIN'
+                                  ? const Color(0xFFE8F3FF)
+                                  : const Color(0xFFF2F4F6),
+                              borderRadius: BorderRadius.circular(6),
+                            ),
+                            child: Text(
+                              userData?['role'] == 'ADMIN' ? "관리자" : "일반 학우",
+                              style: TextStyle(
+                                fontSize: 11,
+                                fontWeight: FontWeight.w600,
+                                color: userData?['role'] == 'ADMIN'
+                                    ? const Color(0xFF3182F6)
+                                    : const Color(0xFF4E5968),
+                              ),
+                            ),
+                          ),
+                        ],
+                      ],
                     ),
                     const SizedBox(height: 4),
                     Text(
@@ -538,39 +580,14 @@ class _HomeScreenState extends State<HomeScreen>
               MaterialPageRoute(builder: (context) => const MyInfoScreen()),
             );
           }),
-          // 홈 위젯 관리 메뉴 제거 (왼쪽 상단으로 이동)
-          // 관리자 메뉴
-          if (_userRole == 'ADMIN') ...[
-            const Padding(
-              padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
-              child: Text(
-                "관리자 메뉴",
-                style: TextStyle(color: Colors.grey, fontSize: 13),
+          _buildDrawerItem(Icons.tune_rounded, '알림 센터 설정', () {
+            Navigator.of(context).push(
+              MaterialPageRoute(
+                builder: (context) => const NotificationSettingsScreen(),
               ),
-            ),
-            _buildDrawerItem(Icons.edit_calendar_rounded, '공지사항 작성', () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const WriteNoticeScreen(),
-                ),
-              );
-            }),
-            _buildDrawerItem(Icons.list_alt_rounded, '공지사항 관리', () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const AdminNoticeManagementScreen(),
-                ),
-              );
-            }),
-            _buildDrawerItem(Icons.verified_user_outlined, '유저 승인', () {
-              Navigator.of(context).push(
-                MaterialPageRoute(
-                  builder: (context) => const AdminUserListScreen(),
-                ),
-              );
-            }),
-          ],
-          _buildDrawerItem(Icons.notifications_active_rounded, '알림 설정', () {
+            );
+          }),
+          _buildDrawerItem(Icons.notifications_active_rounded, '푸시 알림 설정', () {
             // 알림 설정 다이얼로그 표시
             showDialog(
               context: context,
@@ -589,33 +606,58 @@ class _HomeScreenState extends State<HomeScreen>
                           true;
                     }
 
-                    return AlertDialog(
-                      title: const Text("알림 설정"),
-                      content: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                          const Text("푸시 알림 받기"),
-                          Switch(
-                            value: isEnabled,
-                            onChanged: (val) {
-                              _firestoreService.togglePushSetting(val);
-                              // StreamBuilder will auto update UI
-                            },
-                          ),
-                        ],
-                      ),
-                      actions: [
-                        TextButton(
-                          onPressed: () => Navigator.pop(context),
-                          child: const Text("닫기"),
+                    return CustomDialog(
+                      title: "푸시 알림 설정",
+                      content: Container(
+                        padding: const EdgeInsets.symmetric(vertical: 8),
+                        child: Row(
+                          children: [
+                            Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF3182F6).withOpacity(0.1),
+                                borderRadius: BorderRadius.circular(10),
+                              ),
+                              child: const Icon(
+                                Icons.notifications_active_rounded,
+                                color: Color(0xFF3182F6),
+                                size: 24,
+                              ),
+                            ),
+                            const SizedBox(width: 16),
+                            const Expanded(
+                              child: Text(
+                                "공지 알림 받기",
+                                style: TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w500,
+                                  color: Color(0xFF333D4B),
+                                ),
+                              ),
+                            ),
+                            Transform.scale(
+                              scale: 0.9,
+                              child: Switch(
+                                value: isEnabled,
+                                activeColor: const Color(0xFF3182F6),
+                                onChanged: (val) {
+                                  HapticFeedback.lightImpact();
+                                  _firestoreService.togglePushSetting(val);
+                                },
+                              ),
+                            ),
+                          ],
                         ),
-                      ],
+                      ),
+                      confirmText: "닫기",
+                      onConfirm: () => Navigator.pop(context),
                     );
                   },
                 );
               },
             );
           }),
+
           _buildDrawerItem(Icons.logout_rounded, '로그아웃', () async {
             await FirebaseAuth.instance.signOut();
             if (context.mounted) {
@@ -624,7 +666,38 @@ class _HomeScreenState extends State<HomeScreen>
                 (route) => false,
               );
             }
-          }, color: const Color(0xFF3182F6)),
+          }, color: const Color(0xFF3182F6)), // 로그아웃 Brand Color
+          // 관리자 메뉴
+          if (_userRole == 'ADMIN') ...[
+            const Padding(
+              padding: EdgeInsets.only(left: 16, top: 16, bottom: 8),
+              child: Text(
+                "관리자 메뉴",
+                style: TextStyle(color: Colors.grey, fontSize: 13),
+              ),
+            ),
+            _buildDrawerItem(Icons.how_to_reg_rounded, '가입 승인 관리', () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const AdminApprovalScreen(),
+                ),
+              );
+            }),
+            _buildDrawerItem(Icons.edit_calendar_rounded, '공지사항 작성', () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const WriteNoticeScreen(),
+                ),
+              );
+            }),
+            _buildDrawerItem(Icons.list_alt_rounded, '공지사항 관리', () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const AdminNoticeManagementScreen(),
+                ),
+              );
+            }),
+          ],
         ],
       ),
     );
@@ -681,7 +754,7 @@ class _HomeScreenState extends State<HomeScreen>
         Widget eventContent;
         if (todayEvents.isEmpty) {
           eventContent = const Text(
-            "오늘은 일정이 없어요.",
+            "오늘은 일정이 없어요",
             style: TextStyle(fontSize: 15, color: Color(0xFF8B95A1)),
           );
         } else {
@@ -744,13 +817,14 @@ class _HomeScreenState extends State<HomeScreen>
           );
         }
 
-        return GestureDetector(
+        return Bounceable(
           onTap: () {
             Navigator.push(
               context,
               MaterialPageRoute(builder: (context) => const CalendarScreen()),
             );
           },
+          borderRadius: BorderRadius.circular(24),
           child: Container(
             width: double.infinity,
             padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),

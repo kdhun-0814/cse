@@ -57,8 +57,8 @@ class CustomDialog extends StatelessWidget {
                 ),
                 textAlign: TextAlign.center,
               )
-            else
-              content!,
+            else if (content != null)
+              Flexible(child: SingleChildScrollView(child: content!)),
             const SizedBox(height: 24),
             Row(
               children: [

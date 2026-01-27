@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../../models/notice.dart';
 import '../../services/firestore_service.dart';
+import '../../utils/toast_utils.dart';
+import '../../widgets/common/custom_dialog.dart';
 
 class AdminNoticeManagementScreen extends StatefulWidget {
   const AdminNoticeManagementScreen({super.key});
@@ -95,6 +97,11 @@ class _AdminNoticeManagementScreenState
           ),
           PopupMenuButton<String>(
             icon: const Icon(Icons.more_vert, color: Colors.black),
+            color: Colors.white,
+            elevation: 4,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(12),
+            ),
             onSelected: (value) async {
               if (value == 'reset_urgent') {
                 bool confirm = await _showConfirmDialog("모든 긴급 공지를 해제하시겠습니까?");
@@ -111,13 +118,27 @@ class _AdminNoticeManagementScreenState
               }
             },
             itemBuilder: (context) => [
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'reset_urgent',
-                child: Text("🚨 모든 긴급 공지 해제"),
+                child: Row(
+                  children: const [
+                    Icon(Icons.campaign_rounded,
+                        size: 18, color: Color(0xFFD32F2F)),
+                    SizedBox(width: 8),
+                    Text("모든 긴급 공지 해제"),
+                  ],
+                ),
               ),
-              const PopupMenuItem(
+              PopupMenuItem(
                 value: 'reset_important',
-                child: Text("⭐ 모든 중요 공지 해제"),
+                child: Row(
+                  children: const [
+                    Icon(Icons.star_rounded,
+                        size: 18, color: Color(0xFFFFD180)),
+                    SizedBox(width: 8),
+                    Text("모든 중요 공지 해제"),
+                  ],
+                ),
               ),
             ],
           ),
@@ -266,18 +287,49 @@ class _AdminNoticeManagementScreenState
                   style: const TextStyle(fontSize: 12, color: Colors.grey),
                 ),
                 if (notice.isUrgent == true)
-                  const Text(
-                    "🚨 긴급 공지",
-                    style: TextStyle(color: Colors.red, fontSize: 11),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Row(
+                      children: const [
+                        Icon(
+                          Icons.campaign_rounded,
+                          size: 14,
+                          color: Color(0xFFD32F2F),
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          "긴급 공지",
+                          style: TextStyle(color: Color(0xFFD32F2F), fontSize: 11),
+                        ),
+                      ],
+                    ),
                   ),
                 if (notice.isImportant == true)
-                  const Text(
-                    "⭐ 중요 공지",
-                    style: TextStyle(color: Colors.orange, fontSize: 11),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Row(
+                      children: const [
+                        Icon(
+                          Icons.star_rounded,
+                          size: 14,
+                          color: Color(0xFFFFD180),
+                        ),
+                        SizedBox(width: 4),
+                        Text(
+                          "중요 공지",
+                          style: TextStyle(color: Color(0xFFFFD180), fontSize: 11),
+                        ),
+                      ],
+                    ),
                   ),
               ],
             ),
             trailing: PopupMenuButton<String>(
+              color: Colors.white,
+              elevation: 4,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
               onSelected: (value) =>
                   _handleMenuAction(value, notice, isDeletedTab),
               itemBuilder: (context) {
@@ -291,9 +343,16 @@ class _AdminNoticeManagementScreenState
                       value: 'category',
                       child: Text("카테고리 변경"),
                     ),
-                    const PopupMenuItem(
+                    PopupMenuItem(
                       value: 'push',
-                      child: Text("🔔 푸시 알림 발송"),
+                      child: Row(
+                        children: const [
+                          Icon(Icons.notifications_active_rounded,
+                              size: 18, color: Colors.black54),
+                          SizedBox(width: 8),
+                          Text("푸시 알림 발송"),
+                        ],
+                      ),
                     ),
                     const PopupMenuItem(
                       value: 'delete',
@@ -330,23 +389,17 @@ class _AdminNoticeManagementScreenState
   void _confirmPush(Notice notice) {
     showDialog(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text("푸시 알림 발송"),
-        content: Text("'${notice.title}'\n\n이 공지의 알림을 전송하시겠습니까?"),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text("취소"),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              _firestoreService.requestPushNotification(notice.id);
-              _showSnackBar("푸시 알림 요청이 전송되었습니다.");
-            },
-            child: const Text("전송"),
-          ),
-        ],
+      builder: (context) => CustomDialog(
+        title: "푸시 알림 발송",
+        contentText: "'${notice.title}'\n\n이 공지의 알림을 전송하시겠습니까?",
+        cancelText: "취소",
+        confirmText: "전송",
+        onCancel: () => Navigator.pop(context),
+        onConfirm: () {
+          Navigator.pop(context);
+          _firestoreService.requestPushNotification(notice.id);
+          _showSnackBar("푸시 알림 요청이 전송되었습니다.");
+        },
       ),
     );
   }
@@ -361,32 +414,39 @@ class _AdminNoticeManagementScreenState
       context: context,
       builder: (context) => StatefulBuilder(
         builder: (context, setDialogState) {
-          return AlertDialog(
-            title: const Text("카테고리 변경"),
-            content: DropdownButton<String>(
-              value: selected,
-              isExpanded: true,
-              items: categories
-                  .map((e) => DropdownMenuItem(value: e, child: Text(e)))
-                  .toList(),
-              onChanged: (val) {
-                if (val != null) setDialogState(() => selected = val);
-              },
+          return CustomDialog(
+            title: "카테고리 변경",
+            content: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16),
+              decoration: BoxDecoration(
+                color: Colors.white,
+                borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE5E8EB)),
+              ),
+              child: DropdownButtonHideUnderline(
+                child: DropdownButton<String>(
+                  value: selected,
+                  isExpanded: true,
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                  dropdownColor: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
+                  items: categories
+                      .map((e) => DropdownMenuItem(value: e, child: Text(e)))
+                      .toList(),
+                  onChanged: (val) {
+                    if (val != null) setDialogState(() => selected = val);
+                  },
+                ),
+              ),
             ),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context),
-                child: const Text("취소"),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.pop(context);
-                  _firestoreService.updateNoticeCategory(notice.id, selected);
-                  _showSnackBar("카테고리가 변경되었습니다.");
-                },
-                child: const Text("변경"),
-              ),
-            ],
+            cancelText: "취소",
+            confirmText: "변경",
+            onCancel: () => Navigator.pop(context),
+            onConfirm: () {
+              Navigator.pop(context);
+              _firestoreService.updateNoticeCategory(notice.id, selected);
+              _showSnackBar("카테고리가 변경되었습니다.");
+            },
           );
         },
       ),
@@ -394,32 +454,19 @@ class _AdminNoticeManagementScreenState
   }
 
   void _showSnackBar(String message) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(message), duration: const Duration(seconds: 1)),
-    );
+    ToastUtils.show(context, message);
   }
 
   Future<bool> _showConfirmDialog(String content) async {
     return await showDialog(
           context: context,
-          builder: (context) => AlertDialog(
-            content: Text(content),
-            actions: [
-              TextButton(
-                onPressed: () => Navigator.pop(context, false),
-                child: const Text("취소", style: TextStyle(color: Colors.grey)),
-              ),
-              TextButton(
-                onPressed: () => Navigator.pop(context, true),
-                child: const Text(
-                  "확인",
-                  style: TextStyle(
-                    color: Color(0xFF3182F6),
-                    fontWeight: FontWeight.bold,
-                  ),
-                ),
-              ),
-            ],
+          builder: (context) => CustomDialog(
+            title: "확인", // 제목이 없었으므로 기본값 추가
+            contentText: content,
+            cancelText: "취소",
+            confirmText: "확인",
+            onCancel: () => Navigator.pop(context, false),
+            onConfirm: () => Navigator.pop(context, true),
           ),
         ) ??
         false;

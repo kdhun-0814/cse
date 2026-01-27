@@ -1,5 +1,7 @@
+import 'dart:io';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:rxdart/rxdart.dart';
 import '../models/notice.dart';
 import '../models/group.dart';
@@ -19,6 +21,49 @@ class FirestoreService {
       return userDoc['role'] ?? 'USER'; // role 필드가 없으면 기본값 USER
     }
     return 'USER';
+  }
+
+  // ★ 관리자용: 대기 중인 모든 유저 일괄 승인
+  Future<int> approveAllPendingUsers() async {
+    // 1. 대기 중인 유저 쿼리
+    final snapshot = await _db
+        .collection('users')
+        .where('status', isEqualTo: 'pending')
+        .get();
+
+    if (snapshot.docs.isEmpty) return 0;
+
+    // 2. 일괄 업데이트 (Batch)
+    WriteBatch batch = _db.batch();
+    for (var doc in snapshot.docs) {
+      batch.update(doc.reference, {
+        'status': 'approved',
+        'approved_at': FieldValue.serverTimestamp(),
+      });
+    }
+
+    await batch.commit();
+    return snapshot.docs.length; // 처리된 수 반환
+  }
+
+  // ★ 회원가입 토큰 검증
+  Future<bool> verifySignupToken(String inputToken) async {
+    try {
+      DocumentSnapshot doc =
+          await _db.collection('system_config').doc('signup').get();
+
+      if (!doc.exists) return true; // 설정이 없으면 검증 없이 통과 (또는 false로 차단 가능)
+
+      final data = doc.data() as Map<String, dynamic>;
+      final String? validToken = data['token'];
+
+      if (validToken == null || validToken.isEmpty) return true; // 토큰 미설정 시 통과
+
+      return inputToken.trim() == validToken;
+    } catch (e) {
+      print("Error verifying signup token: $e");
+      return false; // 에러 시 안전하게 차단
+    }
   }
 
   // 일정 추가 함수 (관리자용)
@@ -87,6 +132,14 @@ class FirestoreService {
     });
   }
 
+  // ★ 알림 설정 토글 (Firestore에 저장)
+  Future<void> toggleNotificationSetting(String key, bool isEnabled) async {
+    String uid = _auth.currentUser!.uid;
+    await _db.collection('users').doc(uid).set({
+      'notification_settings': {key: isEnabled},
+    }, SetOptions(merge: true));
+  }
+
   // 관리자용 - 모든 공지 가져오기 (삭제된 것 포함)
   Stream<List<Notice>> getAdminNotices() {
     return _db
@@ -94,10 +147,10 @@ class FirestoreService {
         .orderBy('date', descending: true)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs
-              .map((doc) => Notice.fromFirestore(doc, []))
-              .toList();
-        });
+      return snapshot.docs
+          .map((doc) => Notice.fromFirestore(doc, []))
+          .toList();
+    });
   }
 
   // 알림 센터용 - 긴급/중요 공지 가져오기
@@ -108,10 +161,76 @@ class FirestoreService {
         .orderBy('date', descending: true)
         .snapshots()
         .map((snapshot) {
-          return snapshot.docs
-              .map((doc) => Notice.fromFirestore(doc, []))
-              .toList();
-        });
+      return snapshot.docs
+          .map((doc) => Notice.fromFirestore(doc, []))
+          .toList();
+    });
+  }
+
+  // ... (중략) ...
+
+  // 전체 공지 가져오기 (알림센터용: 필터링 & 정렬 적용)
+  Stream<List<Notice>> getGlobalRecentNotices() {
+    String uid = _auth.currentUser!.uid;
+
+    final noticeStream = _db
+        .collection('notices')
+        .orderBy('crawled_at', descending: true)
+        .limit(100)
+        .snapshots();
+
+    final userStream = _db.collection('users').doc(uid).snapshots();
+
+    return Rx.combineLatest2(noticeStream, userStream, (
+      QuerySnapshot noticeSnapshot,
+      DocumentSnapshot userSnapshot,
+    ) {
+      final userData = userSnapshot.data() as Map<String, dynamic>?;
+      final readNotices = List<String>.from(userData?['readNotices'] ?? []);
+      final scraps = List<String>.from(userData?['scraps'] ?? []);
+      
+      // ★ 설정된 필터 가져오기 (기본값 true)
+      final settings = userData?['notification_settings'] as Map<String, dynamic>?;
+      
+      bool isVisible(Notice n) {
+        // 1. 긴급/중요 공지의 표시 여부 확인
+        if (n.isUrgent == true) {
+          return settings?['urgent'] ?? true; 
+        }
+        if (n.isImportant == true) {
+          return settings?['important'] ?? true;
+        }
+        
+        // 2. 일반 카테고리 공지 표시 여부 확인
+        // 카테고리 이름이 정확히 일치해야 함 (예: '학사', '장학' 등)
+        return settings?[n.category] ?? true;
+      }
+
+      // 1. 객체 변환 및 필터링
+      List<Notice> notices = noticeSnapshot.docs
+          .map((doc) => Notice.fromFirestore(doc, scraps, readNotices))
+          .where((n) => !n.isDeleted && isVisible(n)) // 삭제된 것 제외 + 사용자 설정 필터링
+          .toList();
+
+      // 2. 정렬 (긴급 > 중요 > 일반(날짜순))
+      notices.sort((a, b) {
+        // 긴급 우선
+        if ((a.isUrgent ?? false) != (b.isUrgent ?? false)) {
+          return (a.isUrgent ?? false) ? -1 : 1;
+        }
+        // 중요 차선
+        if ((a.isImportant ?? false) != (b.isImportant ?? false)) {
+          return (a.isImportant ?? false) ? -1 : 1;
+        }
+        // 기본은 날짜(크롤링 시간 or 작성 시간) 내림차순
+        // Firestore 쿼리에서 이미 crawled_at DESC로 가져왔으므로, 
+        // 긴급/중요 아닌 것들은 순서 유지됨.
+        // 다만 '긴급'끼리나 '중요'끼리의 정렬이 필요하다면 여기서 date 비교 추가 가능
+        return 0; // 기존 순서 유지
+      });
+
+      return notices;
+    });
   }
 
   // 스크랩 토글
@@ -214,31 +333,7 @@ class FirestoreService {
     }
   }
 
-  // 전체 공지 가져오기 (알림센터용, 읽음 여부 확인 위해 결합 스트림 사용)
-  Stream<List<Notice>> getGlobalRecentNotices() {
-    String uid = _auth.currentUser!.uid;
 
-    final noticeStream = _db
-        .collection('notices')
-        .orderBy('crawled_at', descending: true)
-        .limit(100)
-        .snapshots();
-
-    final userStream = _db.collection('users').doc(uid).snapshots();
-
-    return Rx.combineLatest2(noticeStream, userStream, (
-      QuerySnapshot noticeSnapshot,
-      DocumentSnapshot userSnapshot,
-    ) {
-      final userData = userSnapshot.data() as Map<String, dynamic>?;
-      final readNotices = List<String>.from(userData?['readNotices'] ?? []);
-      final scraps = List<String>.from(userData?['scraps'] ?? []);
-
-      return noticeSnapshot.docs.map((doc) {
-        return Notice.fromFirestore(doc, scraps, readNotices);
-      }).toList();
-    });
-  }
 
   // 핫 공지 (오늘 조회수 기준 Top 5)
   Stream<List<Notice>> getHotNotices() {
@@ -792,5 +887,38 @@ class FirestoreService {
   // 유저 승인
   Future<void> approveUser(String uid) async {
     await _db.collection('users').doc(uid).update({'status': 'approved'});
+  }
+
+  // 프로필 이미지 업데이트
+  Future<String> updateProfileImage(String uid, File imageFile) async {
+    try {
+      final ref = FirebaseStorage.instance
+          .ref()
+          .child('user_profiles')
+          .child('$uid.jpg');
+
+      await ref.putFile(imageFile);
+      final url = await ref.getDownloadURL();
+
+      await _db.collection('users').doc(uid).update({
+        'profile_image_url': url,
+      });
+
+      return url;
+    } catch (e) {
+      throw Exception('Failed to update profile image: $e');
+    }
+  }
+
+  // 사용자 이름 업데이트 (성, 이름 분리)
+  Future<void> updateUserName(String uid, String lastName, String firstName) async {
+    try {
+      await _db.collection('users').doc(uid).update({
+        'last_name': lastName,
+        'first_name': firstName,
+      });
+    } catch (e) {
+      throw Exception('Failed to update user name: $e');
+    }
   }
 }

@@ -1,7 +1,13 @@
+import 'dart:io';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:image_picker/image_picker.dart';
+import '../services/firestore_service.dart';
 import 'admin/admin_user_list_screen.dart';
+import '../widgets/common/bounceable.dart';
+import '../widgets/common/custom_dialog.dart';
+import '../utils/toast_utils.dart';
 
 class MyInfoScreen extends StatefulWidget {
   const MyInfoScreen({super.key});
@@ -52,23 +58,102 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
     try {
       await _auth.sendPasswordResetEmail(email: _user!.email!);
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text('${_user!.email}로 비밀번호 재설정 메일을 보냈습니다.'),
-            backgroundColor: const Color(0xFF3182F6),
-          ),
-        );
+        ToastUtils.show(context, '${_user!.email}로 비밀번호 재설정 메일을 보냈습니다.');
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.'),
-            backgroundColor: Colors.red,
-          ),
-        );
+        ToastUtils.show(context, '메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.', isError: true);
       }
     }
+  }
+
+  Future<void> _pickImage() async {
+    final ImagePicker picker = ImagePicker();
+    final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+
+    if (image != null && _user != null) {
+      try {
+        setState(() => _isLoading = true);
+        File file = File(image.path);
+        await FirestoreService().updateProfileImage(_user!.uid, file);
+        await _loadUserData(); // 데이터 새로고침
+        if (mounted) ToastUtils.show(context, "프로필 사진이 변경되었습니다.");
+      } catch (e) {
+        if (mounted) ToastUtils.show(context, "사진 변경 실패: $e", isError: true);
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
+  void _editName() {
+    String lastName = _userData?['last_name'] ?? '';
+    String firstName = _userData?['first_name'] ?? '';
+
+    final lastNameController = TextEditingController(text: lastName);
+    final firstNameController = TextEditingController(text: firstName);
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) => CustomDialog(
+        title: "이름 수정",
+        content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            TextField(
+              controller: lastNameController,
+              decoration: InputDecoration(
+                labelText: "성 (Last Name)",
+                hintText: "성을 입력하세요",
+                filled: true,
+                fillColor: const Color(0xFFF2F4F6),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            TextField(
+              controller: firstNameController,
+              decoration: InputDecoration(
+                labelText: "이름 (First Name)",
+                hintText: "이름을 입력하세요",
+                filled: true,
+                fillColor: const Color(0xFFF2F4F6),
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(12),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+            ),
+          ],
+        ),
+        cancelText: "취소",
+        confirmText: "저장",
+        onCancel: () => Navigator.pop(dialogContext),
+        onConfirm: () async {
+          if (lastNameController.text.trim().isEmpty ||
+              firstNameController.text.trim().isEmpty) {
+            ToastUtils.show(dialogContext, "성과 이름을 모두 입력해주세요.", isError: true);
+            return;
+          }
+          try {
+            Navigator.pop(dialogContext); // 다이얼로그 닫기 (dialogContext 사용)
+            setState(() => _isLoading = true);
+            await FirestoreService().updateUserName(
+              _user!.uid,
+              lastNameController.text.trim(),
+              firstNameController.text.trim(),
+            );
+            await _loadUserData();
+            if (mounted) ToastUtils.show(context, "이름이 변경되었습니다."); // 화면의 context 사용
+          } catch (e) {
+            if (mounted) ToastUtils.show(context, "이름 변경 실패: $e", isError: true); // 화면의 context 사용
+            setState(() => _isLoading = false);
+          }
+        },
+      ),
+    );
   }
 
   @override
@@ -137,28 +222,67 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
               ),
               child: Column(
                 children: [
-                  Container(
-                    padding: const EdgeInsets.all(4),
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: Border.all(
-                        color: const Color(0xFFE5E8EB),
-                        width: 1,
-                      ),
-                    ),
-                    child: const CircleAvatar(
-                      radius: 40,
-                      backgroundColor: Color(0xFFF2F4F6),
-                      child: Icon(
-                        Icons.person,
-                        size: 40,
-                        color: Color(0xFFB0B8C1),
-                      ),
+                  // 프로필 이미지 + 수정 버튼
+                  GestureDetector(
+                    onTap: _pickImage,
+                    child: Stack(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(4),
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color: const Color(0xFFE5E8EB),
+                              width: 1,
+                            ),
+                          ),
+                          child: CircleAvatar(
+                            radius: 40,
+                            backgroundColor: const Color(0xFFF2F4F6),
+                            backgroundImage: _userData?['profile_image_url'] != null
+                                ? NetworkImage(_userData!['profile_image_url'])
+                                : null,
+                            child: _userData?['profile_image_url'] == null
+                                ? const Icon(
+                                    Icons.person,
+                                    size: 40,
+                                    color: Color(0xFFB0B8C1),
+                                  )
+                                : null,
+                          ),
+                        ),
+                        Positioned(
+                          bottom: 0,
+                          right: 0,
+                          child: Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              shape: BoxShape.circle,
+                              border: Border.all(color: const Color(0xFFE5E8EB)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.black.withOpacity(0.05),
+                                  blurRadius: 4,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
+                            ),
+                            child: const Icon(
+                              Icons.edit_rounded,
+                              size: 14,
+                              color: Color(0xFF4E5968),
+                            ),
+                          ),
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: 16),
+                  
+                  // 성명 + 학우님
                   Text(
-                    name,
+                    "$name 학우님",
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,
@@ -166,15 +290,18 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
+                  
+                  // 학번 (도메인 제외)
                   Text(
-                    email,
+                    studentId,
                     style: const TextStyle(
                       fontSize: 15,
                       color: Color(0xFF8B95A1),
                     ),
                   ),
                   const SizedBox(height: 12),
-                  // 뱃지 표시 (관리자 여부)
+                  
+                  // 뱃지 표시 (한글 변환)
                   Container(
                     padding: const EdgeInsets.symmetric(
                       horizontal: 12,
@@ -187,7 +314,7 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      isAdmin ? "관리자 (ADMIN)" : "학생 (USER)",
+                      isAdmin ? "관리자" : "일반 학우",
                       style: TextStyle(
                         fontSize: 13,
                         fontWeight: FontWeight.w600,
@@ -229,11 +356,50 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
+                  
+                  // 성명 + 수정 버튼
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      const Text(
+                        "성명",
+                        style: TextStyle(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w500,
+                          color: Color(0xFF8B95A1),
+                        ),
+                      ),
+                      Row(
+                        children: [
+                          Text(
+                            name,
+                            style: const TextStyle(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w600,
+                              color: Color(0xFF333D4B),
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          GestureDetector(
+                            onTap: _editName,
+                            child: const Icon(
+                              Icons.edit_rounded,
+                              size: 16,
+                              color: Color(0xFFB0B8C1),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                  const Divider(height: 32, color: Color(0xFFF2F4F6)),
+                  
+                  // 학번
                   _buildInfoRow("학번", studentId),
                   const Divider(height: 32, color: Color(0xFFF2F4F6)),
-                  _buildInfoRow("이메일", email),
-                  const Divider(height: 32, color: Color(0xFFF2F4F6)),
-                  _buildInfoRow("계정 권한", role),
+                  
+                  // 계정 권한
+                  _buildInfoRow("계정 권한", isAdmin ? "관리자" : "일반 학우"),
                 ],
               ),
             ),
@@ -267,7 +433,7 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                   ),
                   const SizedBox(height: 20),
                   // 비밀번호 재설정 버튼
-                  InkWell(
+                  Bounceable(
                     onTap: _sendPasswordResetEmail,
                     borderRadius: BorderRadius.circular(12),
                     child: Container(

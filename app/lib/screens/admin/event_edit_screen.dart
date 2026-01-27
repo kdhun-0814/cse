@@ -6,6 +6,7 @@ import '../../models/event.dart'; // Event 모델 import
 import '../../services/firestore_service.dart';
 import '../../utils/toast_utils.dart';
 import '../../widgets/common/custom_loading_indicator.dart';
+import '../../widgets/common/bounceable.dart';
 
 class EventEditScreen extends StatefulWidget {
   final Event event; // 수정할 이벤트 객체
@@ -111,13 +112,17 @@ class _EventEditScreenState extends State<EventEditScreen> {
             Container(
               padding: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
-                color: const Color(0xFFF2F4F6),
+                color: Colors.white,
                 borderRadius: BorderRadius.circular(12),
+                border: Border.all(color: const Color(0xFFE5E8EB)),
               ),
               child: DropdownButtonHideUnderline(
                 child: DropdownButton<String>(
                   value: _category,
                   isExpanded: true,
+                  icon: const Icon(Icons.keyboard_arrow_down_rounded),
+                  dropdownColor: Colors.white,
+                  borderRadius: BorderRadius.circular(12),
                   items: _categories.map((String value) {
                     return DropdownMenuItem<String>(
                       value: value,
@@ -152,25 +157,27 @@ class _EventEditScreenState extends State<EventEditScreen> {
             SizedBox(
               width: double.infinity,
               height: 52,
-              child: ElevatedButton(
-                onPressed: _isLoading ? null : _updateEvent,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: const Color(0xFF3182F6),
-                  shape: RoundedRectangleBorder(
+              child: Bounceable(
+                onTap: _isLoading ? null : _updateEvent,
+                borderRadius: BorderRadius.circular(16),
+                child: Container(
+                  height: 52,
+                  decoration: BoxDecoration(
+                    color: const Color(0xFF3182F6),
                     borderRadius: BorderRadius.circular(16),
                   ),
-                  elevation: 0,
-                ),
-                child: _isLoading
-                    ? const CustomLoadingIndicator(color: Colors.white)
-                    : const Text(
-                        "수정 완료",
-                        style: TextStyle(
-                          fontSize: 16,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                  alignment: Alignment.center,
+                  child: _isLoading
+                      ? const CustomLoadingIndicator(color: Colors.white)
+                      : const Text(
+                          "수정 완료",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                          ),
                         ),
-                      ),
+                ),
               ),
             ),
           ],
@@ -184,7 +191,7 @@ class _EventEditScreenState extends State<EventEditScreen> {
     DateTime date,
     Function(DateTime) onPicked,
   ) {
-    return GestureDetector(
+    return Bounceable(
       onTap: () async {
         final picked = await showDatePicker(
           context: context,
@@ -194,6 +201,7 @@ class _EventEditScreenState extends State<EventEditScreen> {
         );
         if (picked != null) onPicked(picked);
       },
+      borderRadius: BorderRadius.circular(12),
       child: Container(
         padding: const EdgeInsets.all(16),
         decoration: BoxDecoration(

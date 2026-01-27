@@ -4,6 +4,9 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'screens/main_nav_screen.dart';
 import 'screens/welcome_screen.dart';
 import 'services/fcm_service.dart';
+import 'widgets/common/custom_loading_indicator.dart';
+import 'widgets/common/bounceable.dart';
+import 'screens/approval_waiting_screen.dart';
 
 class AuthGate extends StatefulWidget {
   const AuthGate({super.key});
@@ -29,28 +32,53 @@ class _AuthGateState extends State<AuthGate> {
 
         print("🔍 AuthGate: 로그인 됨 (UID: ${snapshot.data!.uid}) -> DB 조회 시작");
 
-        return FutureBuilder<DocumentSnapshot>(
-          future: FirebaseFirestore.instance
+        // 2. 유저 정보 실시간 감지 (Future -> Stream 변경)
+        return StreamBuilder<DocumentSnapshot>(
+          stream: FirebaseFirestore.instance
               .collection('users')
               .doc(snapshot.data!.uid)
-              .get(),
+              .snapshots(),
           builder: (context, userSnapshot) {
             // 2. 로딩 상태 확인 로그
             if (userSnapshot.connectionState == ConnectionState.waiting) {
               print("⏳ AuthGate: DB 데이터 가져오는 중...");
               return const Scaffold(
                 backgroundColor: Colors.white,
-                body: Center(
-                  child: CircularProgressIndicator(color: Color(0xFF3182F6)),
-                ),
+                body: Center(child: const CustomLoadingIndicator()),
               );
             }
 
-            // 3. 에러 또는 데이터 없음
+            // 3. 에러 또는 데이터 없음 (회원가입 진행 중일 수 있음)
             if (!userSnapshot.hasData || !userSnapshot.data!.exists) {
-              print("🚨 AuthGate: DB에 유저 정보 없음! -> 로그아웃 시킴");
-              FirebaseAuth.instance.signOut();
-              return const WelcomeScreen();
+              print("⏳ AuthGate: 유저 정보 없음 (가입 진행 중 예상) -> 대기 화면 표시");
+              // 회원가입 직후 Firestore 생성 전 단계일 수 있으므로 로그아웃 시키지 않음
+              return Scaffold(
+                backgroundColor: Colors.white,
+                body: Center(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const CustomLoadingIndicator(),
+                      SizedBox(height: 16),
+                      Text(
+                        "가입 처리 중입니다...",
+                        style: TextStyle(color: Colors.grey),
+                      ),
+                      const SizedBox(height: 24),
+                      Bounceable(
+                        onTap: () => FirebaseAuth.instance.signOut(),
+                        child: const Padding(
+                          padding: EdgeInsets.all(8.0),
+                          child: Text(
+                            "로그아웃",
+                            style: TextStyle(color: Colors.grey),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              );
             }
 
             final userData = userSnapshot.data!.data() as Map<String, dynamic>;
@@ -78,47 +106,10 @@ class _AuthGateState extends State<AuthGate> {
             }
 
             print("⛔ AuthGate: 승인 대기 중 -> 차단 화면 표시");
-            return _buildBlockScreen(context);
+            return const ApprovalWaitingScreen();
           },
         );
       },
-    );
-  }
-
-  Widget _buildBlockScreen(BuildContext context) {
-    return Scaffold(
-      backgroundColor: Colors.white,
-      body: Center(
-        child: Padding(
-          padding: const EdgeInsets.all(30),
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const Icon(
-                Icons.hourglass_top_rounded,
-                size: 80,
-                color: Color(0xFF3182F6),
-              ),
-              const SizedBox(height: 24),
-              const Text(
-                "승인 대기 중",
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 16),
-              const Text(
-                "학생회에서 재학증명서 확인 후\n승인 완료 시 이용 가능합니다.\n(최대 3일 소요)",
-                textAlign: TextAlign.center,
-                style: TextStyle(color: Colors.grey, height: 1.5),
-              ),
-              const SizedBox(height: 40),
-              TextButton(
-                onPressed: () => FirebaseAuth.instance.signOut(),
-                child: const Text("로그아웃", style: TextStyle(color: Colors.grey)),
-              ),
-            ],
-          ),
-        ),
-      ),
     );
   }
 }

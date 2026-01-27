@@ -3,7 +3,11 @@ import 'package:flutter/material.dart';
 class ToastUtils {
   static OverlayEntry? _overlayEntry;
 
-  static void show(BuildContext context, String message, {bool isError = false}) {
+  static void show(
+    BuildContext context,
+    String message, {
+    bool isError = false,
+  }) {
     // 이전 토스트가 있으면 즉시 제거 (새로운 메시지로 즉시 갱신)
     if (_overlayEntry != null) {
       _overlayEntry?.remove();
@@ -41,7 +45,8 @@ class _FadingToast extends StatefulWidget {
   State<_FadingToast> createState() => _FadingToastState();
 }
 
-class _FadingToastState extends State<_FadingToast> with SingleTickerProviderStateMixin {
+class _FadingToastState extends State<_FadingToast>
+    with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _opacity;
 
@@ -53,10 +58,7 @@ class _FadingToastState extends State<_FadingToast> with SingleTickerProviderSta
       duration: const Duration(milliseconds: 300), // 페이드 인/아웃 시간
     );
 
-    _opacity = CurvedAnimation(
-      parent: _controller,
-      curve: Curves.easeOut,
-    );
+    _opacity = CurvedAnimation(parent: _controller, curve: Curves.easeOut);
 
     // 시작: 페이드 인
     _controller.forward();
@@ -65,7 +67,7 @@ class _FadingToastState extends State<_FadingToast> with SingleTickerProviderSta
     Future.delayed(const Duration(seconds: 2), () {
       if (mounted) {
         _controller.reverse().then((_) {
-            widget.onDismiss();
+          widget.onDismiss();
         });
       }
     });
@@ -80,7 +82,7 @@ class _FadingToastState extends State<_FadingToast> with SingleTickerProviderSta
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
-    
+
     return Positioned(
       bottom: 30 + bottomPadding, // 하단 여백 + 시스템 네비게이션 바 높이
       left: 20,
@@ -92,9 +94,11 @@ class _FadingToastState extends State<_FadingToast> with SingleTickerProviderSta
           child: Container(
             padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             decoration: BoxDecoration(
-              color: (widget.isError 
-                  ? const Color(0xFFE93D3D) 
-                  : const Color(0xFF3182F6)).withOpacity(0.9),
+              color:
+                  (widget.isError
+                          ? const Color(0xFFE93D3D)
+                          : const Color(0xFF3182F6))
+                      .withOpacity(0.9),
               borderRadius: BorderRadius.circular(16),
               border: Border.all(
                 color: const Color(0xFFE5E8EB).withOpacity(0.5),
@@ -102,9 +106,11 @@ class _FadingToastState extends State<_FadingToast> with SingleTickerProviderSta
               ),
               boxShadow: [
                 BoxShadow(
-                  color: (widget.isError 
-                      ? const Color(0xFFE93D3D) 
-                      : const Color(0xFF3182F6)).withOpacity(0.3),
+                  color:
+                      (widget.isError
+                              ? const Color(0xFFE93D3D)
+                              : const Color(0xFF3182F6))
+                          .withOpacity(0.3),
                   blurRadius: 10,
                   offset: const Offset(0, 4),
                 ),
@@ -114,8 +120,8 @@ class _FadingToastState extends State<_FadingToast> with SingleTickerProviderSta
               mainAxisSize: MainAxisSize.min,
               children: [
                 Icon(
-                  widget.isError 
-                      ? Icons.error_outline_rounded 
+                  widget.isError
+                      ? Icons.error_outline_rounded
                       : Icons.check_circle_outline_rounded,
                   color: Colors.white,
                   size: 20,
