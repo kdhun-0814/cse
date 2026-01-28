@@ -49,8 +49,10 @@ class FirestoreService {
   // ★ 회원가입 토큰 검증
   Future<bool> verifySignupToken(String inputToken) async {
     try {
-      DocumentSnapshot doc =
-          await _db.collection('system_config').doc('signup').get();
+      DocumentSnapshot doc = await _db
+          .collection('system_config')
+          .doc('signup')
+          .get();
 
       if (!doc.exists) return true; // 설정이 없으면 검증 없이 통과 (또는 false로 차단 가능)
 
@@ -145,12 +147,13 @@ class FirestoreService {
     return _db
         .collection('notices')
         .orderBy('date', descending: true)
+        .limit(100) // 최근 100개만
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => Notice.fromFirestore(doc, []))
-          .toList();
-    });
+          return snapshot.docs
+              .map((doc) => Notice.fromFirestore(doc, []))
+              .toList();
+        });
   }
 
   // 알림 센터용 - 긴급/중요 공지 가져오기
@@ -159,12 +162,13 @@ class FirestoreService {
         .collection('notices')
         .where('is_urgent', isEqualTo: true) // 긴급 공지 우선
         .orderBy('date', descending: true)
+        .limit(50) // 최근 50개만
         .snapshots()
         .map((snapshot) {
-      return snapshot.docs
-          .map((doc) => Notice.fromFirestore(doc, []))
-          .toList();
-    });
+          return snapshot.docs
+              .map((doc) => Notice.fromFirestore(doc, []))
+              .toList();
+        });
   }
 
   // ... (중략) ...
@@ -188,19 +192,20 @@ class FirestoreService {
       final userData = userSnapshot.data() as Map<String, dynamic>?;
       final readNotices = List<String>.from(userData?['readNotices'] ?? []);
       final scraps = List<String>.from(userData?['scraps'] ?? []);
-      
+
       // ★ 설정된 필터 가져오기 (기본값 true)
-      final settings = userData?['notification_settings'] as Map<String, dynamic>?;
-      
+      final settings =
+          userData?['notification_settings'] as Map<String, dynamic>?;
+
       bool isVisible(Notice n) {
         // 1. 긴급/중요 공지의 표시 여부 확인
         if (n.isUrgent == true) {
-          return settings?['urgent'] ?? true; 
+          return settings?['urgent'] ?? true;
         }
         if (n.isImportant == true) {
           return settings?['important'] ?? true;
         }
-        
+
         // 2. 일반 카테고리 공지 표시 여부 확인
         // 카테고리 이름이 정확히 일치해야 함 (예: '학사', '장학' 등)
         return settings?[n.category] ?? true;
@@ -223,7 +228,7 @@ class FirestoreService {
           return (a.isImportant ?? false) ? -1 : 1;
         }
         // 기본은 날짜(크롤링 시간 or 작성 시간) 내림차순
-        // Firestore 쿼리에서 이미 crawled_at DESC로 가져왔으므로, 
+        // Firestore 쿼리에서 이미 crawled_at DESC로 가져왔으므로,
         // 긴급/중요 아닌 것들은 순서 유지됨.
         // 다만 '긴급'끼리나 '중요'끼리의 정렬이 필요하다면 여기서 date 비교 추가 가능
         return 0; // 기존 순서 유지
@@ -332,8 +337,6 @@ class FirestoreService {
       rethrow;
     }
   }
-
-
 
   // 핫 공지 (오늘 조회수 기준 Top 5)
   Stream<List<Notice>> getHotNotices() {
@@ -661,7 +664,8 @@ class FirestoreService {
   Stream<List<Group>> getGroups(String filterType) {
     Query query = _db
         .collection('groups')
-        .orderBy('createdAt', descending: true);
+        .orderBy('createdAt', descending: true)
+        .limit(50); // 최근 50개만
 
     return query.snapshots().map((snapshot) {
       List<Group> allGroups = snapshot.docs
@@ -729,8 +733,9 @@ class FirestoreService {
 
       Map<String, dynamic> data = groupSnapshot.data() as Map<String, dynamic>;
       List<dynamic> qnaListDynamic = data['qnaList'] ?? [];
-      List<QnAItem> qnaList =
-          qnaListDynamic.map((e) => QnAItem.fromMap(e)).toList();
+      List<QnAItem> qnaList = qnaListDynamic
+          .map((e) => QnAItem.fromMap(e))
+          .toList();
 
       // 익명 ID 로직
       int? anonymousId;
@@ -756,13 +761,16 @@ class FirestoreService {
       }
 
       // 유저 이름 가져오기
-      DocumentSnapshot userDoc = await transaction
-          .get(_db.collection('users').doc(uid));
-      String userName = (userDoc.data() as Map<String, dynamic>)['name'] ?? '익명';
+      DocumentSnapshot userDoc = await transaction.get(
+        _db.collection('users').doc(uid),
+      );
+      String userName =
+          (userDoc.data() as Map<String, dynamic>)['name'] ?? '익명';
 
       // 새 항목 생성
       QnAItem newItem = QnAItem(
-        id: const Uuid().v4(), // pubspec.yaml에 uuid 패키지 필요 (없을 시 string interpolation으로 대체)
+        id: const Uuid()
+            .v4(), // pubspec.yaml에 uuid 패키지 필요 (없을 시 string interpolation으로 대체)
         userId: uid,
         userName: userName,
         content: content,
@@ -780,7 +788,11 @@ class FirestoreService {
   }
 
   // ★ QnA 수정
-  Future<void> updateQnA(String groupId, String qnaId, String newContent) async {
+  Future<void> updateQnA(
+    String groupId,
+    String qnaId,
+    String newContent,
+  ) async {
     DocumentReference groupRef = _db.collection('groups').doc(groupId);
 
     await _db.runTransaction((transaction) async {
@@ -789,10 +801,10 @@ class FirestoreService {
 
       Map<String, dynamic> data = groupSnapshot.data() as Map<String, dynamic>;
       List<dynamic> qnaListDynamic = data['qnaList'] ?? [];
-      
+
       // 전체 리스트를 새로 만들어서 교체해야 함 (배열 내 특정 객체 수정 불가)
       List<Map<String, dynamic>> updatedList = [];
-      
+
       for (var item in qnaListDynamic) {
         if (item['id'] == qnaId) {
           item['content'] = newContent;
@@ -815,9 +827,9 @@ class FirestoreService {
 
       Map<String, dynamic> data = groupSnapshot.data() as Map<String, dynamic>;
       List<dynamic> qnaListDynamic = data['qnaList'] ?? [];
-      
+
       List<Map<String, dynamic>> updatedList = [];
-      
+
       for (var item in qnaListDynamic) {
         if (item['id'] == qnaId) {
           item['isDeleted'] = true;
@@ -835,11 +847,14 @@ class FirestoreService {
 
   // 모든 일정 가져오기
   Stream<List<Event>> getEvents() {
-    return _db.collection('events').orderBy('startDate').snapshots().map((
-      snapshot,
-    ) {
-      return snapshot.docs.map((doc) => Event.fromFirestore(doc)).toList();
-    });
+    return _db
+        .collection('events')
+        .orderBy('startDate')
+        .limit(100) // 최근 100개만
+        .snapshots()
+        .map((snapshot) {
+          return snapshot.docs.map((doc) => Event.fromFirestore(doc)).toList();
+        });
   }
   // --- 4. 홈 위젯 관리 ---
 
@@ -900,9 +915,7 @@ class FirestoreService {
       await ref.putFile(imageFile);
       final url = await ref.getDownloadURL();
 
-      await _db.collection('users').doc(uid).update({
-        'profile_image_url': url,
-      });
+      await _db.collection('users').doc(uid).update({'profile_image_url': url});
 
       return url;
     } catch (e) {
@@ -911,7 +924,11 @@ class FirestoreService {
   }
 
   // 사용자 이름 업데이트 (성, 이름 분리)
-  Future<void> updateUserName(String uid, String lastName, String firstName) async {
+  Future<void> updateUserName(
+    String uid,
+    String lastName,
+    String firstName,
+  ) async {
     try {
       await _db.collection('users').doc(uid).update({
         'last_name': lastName,

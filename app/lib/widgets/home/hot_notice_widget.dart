@@ -5,19 +5,38 @@ import '../../screens/notice_detail_screen.dart';
 import '../common/custom_loading_indicator.dart';
 import '../common/bounceable.dart'; // Toss-style Interaction
 
-class HotNoticeWidget extends StatelessWidget {
+class HotNoticeWidget extends StatefulWidget {
   final bool forceShow;
 
   const HotNoticeWidget({super.key, this.forceShow = false});
 
   @override
-  Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
+  State<HotNoticeWidget> createState() => _HotNoticeWidgetState();
+}
+
+class _HotNoticeWidgetState extends State<HotNoticeWidget> {
+  Future<QuerySnapshot>? _noticesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotices();
+  }
+
+  void _loadNotices() {
+    setState(() {
+      _noticesFuture = FirebaseFirestore.instance
           .collection('notices')
-          .orderBy('views_today', descending: true) // NEW: 오늘 조회수 기준
+          .orderBy('views_today', descending: true)
           .limit(5)
-          .snapshots(),
+          .get();
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return FutureBuilder<QuerySnapshot>(
+      future: _noticesFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData)
           return const Center(child: CustomLoadingIndicator());
@@ -134,7 +153,8 @@ class HotNoticeWidget extends StatelessWidget {
                         },
                         borderRadius: isLast
                             ? const BorderRadius.vertical(
-                                bottom: Radius.circular(24))
+                                bottom: Radius.circular(24),
+                              )
                             : BorderRadius.zero,
                         child: ListTile(
                           contentPadding: const EdgeInsets.symmetric(

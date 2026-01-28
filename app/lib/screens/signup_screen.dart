@@ -2,12 +2,12 @@ import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../services/firestore_service.dart';
-import '../services/firestore_service.dart';
 import '../utils/toast_utils.dart';
-import '../widgets/common/custom_dialog.dart';
 import '../widgets/common/bounceable.dart';
 import '../widgets/common/jelly_button.dart';
 import 'approval_waiting_screen.dart';
+import 'terms_of_service_screen.dart';
+import 'privacy_policy_screen.dart';
 
 class SignupScreen extends StatefulWidget {
   const SignupScreen({super.key});
@@ -429,7 +429,6 @@ class _SignupScreenState extends State<SignupScreen> {
     );
   }
 
-
   Widget _buildTermSection() {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -480,7 +479,7 @@ class _SignupScreenState extends State<SignupScreen> {
           (val) => setState(() => _isServiceTermChecked = val ?? false),
           _showServiceTerms,
         ),
-        
+
         // 개인정보 수집 이용
         _buildTermItem(
           "개인정보 수집 및 이용 동의 (필수)",
@@ -523,10 +522,7 @@ class _SignupScreenState extends State<SignupScreen> {
             Expanded(
               child: Text(
                 title,
-                style: const TextStyle(
-                  fontSize: 14,
-                  color: Color(0xFF4E5968),
-                ),
+                style: const TextStyle(fontSize: 14, color: Color(0xFF4E5968)),
               ),
             ),
             Bounceable(
@@ -548,46 +544,16 @@ class _SignupScreenState extends State<SignupScreen> {
   }
 
   void _showServiceTerms() {
-    showDialog(
-      context: context,
-      builder: (context) => CustomDialog(
-        title: "서비스 이용약관",
-        content: const Text(
-          "(예시) 본 서비스는 경상국립대학교 컴퓨터공학부 학생들을 위한 커뮤니티 및 정보 제공 앱입니다.\n\n"
-          "제1조 (목적)\n"
-          "이 약관은 MY_CSE(이하 '서비스')의 이용 조건 및 절차에 관한 사항을 규정함을 목적으로 합니다.\n\n"
-          "제2조 (회원의 의무)\n"
-          "회원은 본인의 학번과 실명으로 가입해야 하며, 허위 정보를 입력해서는 안 됩니다.\n\n"
-          "제3조 (서비스 이용)\n"
-          "관련 법령 및 학칙을 준수하며 서비스를 이용해야 합니다.\n\n"
-          "...",
-          style: TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF4E5968)),
-        ),
-        confirmText: "확인",
-        onConfirm: () => Navigator.pop(context),
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const TermsOfServiceScreen()),
     );
   }
 
   void _showPrivacyTerms() {
-    showDialog(
-      context: context,
-      builder: (context) => CustomDialog(
-        title: "개인정보 수집 및 이용 동의",
-        content: const Text(
-          "(예시) MY_CSE 앱은 원활한 서비스 제공을 위해 다음과 같이 개인정보를 수집합니다.\n\n"
-          "1. 수집 항목\n"
-          "- 성명, 학번, 이메일, 암호화된 비밀번호\n\n"
-          "2. 수집 목적\n"
-          "- 본인 확인, 학적 확인, 공지사항 푸시 알림 전송\n\n"
-          "3. 보유 기간\n"
-          "- 회원 탈퇴 시까지 보유하며, 탈퇴 시 지체 없이 파기합니다.\n\n"
-          "동의를 거부할 권리가 있으나, 거부 시 회원가입이 불가능합니다.",
-          style: TextStyle(fontSize: 13, height: 1.5, color: Color(0xFF4E5968)),
-        ),
-        confirmText: "확인",
-        onConfirm: () => Navigator.pop(context),
-      ),
+    Navigator.push(
+      context,
+      MaterialPageRoute(builder: (context) => const PrivacyPolicyScreen()),
     );
   }
 }

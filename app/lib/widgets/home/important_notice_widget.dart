@@ -23,6 +23,23 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
 
   Timer? _timer;
   List<Notice> _cachedNotices = [];
+  Future<QuerySnapshot>? _noticesFuture;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadNotices();
+  }
+
+  void _loadNotices() {
+    setState(() {
+      _noticesFuture = FirebaseFirestore.instance
+          .collection('notices')
+          .where('is_important', isEqualTo: true)
+          .limit(20)
+          .get();
+    });
+  }
 
   @override
   void dispose() {
@@ -47,12 +64,8 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
 
   @override
   Widget build(BuildContext context) {
-    return StreamBuilder<QuerySnapshot>(
-      stream: FirebaseFirestore.instance
-          .collection('notices')
-          .where('is_important', isEqualTo: true)
-          .limit(20)
-          .snapshots(),
+    return FutureBuilder<QuerySnapshot>(
+      future: _noticesFuture,
       builder: (context, snapshot) {
         if (!snapshot.hasData) {
           return const SizedBox.shrink();
@@ -201,7 +214,9 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
               const Divider(height: 1, color: Color(0xFFF2F4F6)),
               // Content Area
               ClipRRect(
-                borderRadius: const BorderRadius.vertical(bottom: Radius.circular(24)),
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(24),
+                ),
                 child: displayNotices.length <= 3
                     ? Column(
                         children: displayNotices.map((notice) {
@@ -246,7 +261,10 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
           );
         },
         child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 20,
+            vertical: 0,
+          ),
           visualDensity: const VisualDensity(vertical: -4), // Compact
           // onTap 제거 (Bounceable에서 처리)
           leading: const Icon(
