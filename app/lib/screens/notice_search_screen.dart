@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/notice.dart';
-import '../services/firestore_service.dart';
 import 'notice_detail_screen.dart';
 import '../widgets/common/custom_loading_indicator.dart';
 import '../utils/toast_utils.dart';

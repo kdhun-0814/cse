@@ -275,7 +275,7 @@ class _CalendarScreenState extends State<CalendarScreen> {
                       return Row(
                         mainAxisAlignment: MainAxisAlignment.center,
                         children: events.take(3).map((e) {
-                          final event = e as Event;
+                          final event = e;
                           return Container(
                             width: 6,
                             height: 6,

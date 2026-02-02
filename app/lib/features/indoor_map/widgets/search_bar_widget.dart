@@ -120,7 +120,7 @@ class _SearchBarWidgetState extends State<SearchBarWidget> {
                     color: Colors.grey,
                   ),
                   title: Text('$name$aliasText'),
-                  subtitle: Text('${result.floorName}'),
+                  subtitle: Text(result.floorName),
                   onTap: () => _selectRoom(result),
                 );
               },

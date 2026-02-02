@@ -137,7 +137,7 @@ class _WelcomeScreenState extends State<WelcomeScreen> {
                       style: TextStyle(
                         fontSize: 16,
                         fontWeight: FontWeight.bold,
-                        color: const Color(0xFF3182F6),
+                        color: Color(0xFF3182F6),
                       ),
                     ),
                   ),

@@ -17,6 +17,7 @@ class Notice {
   final bool? isUrgent; // NEW
   final bool isDeleted; // NEW
   final bool isRead; // NEW
+  final DocumentSnapshot? doc; // 페이지네이션용
 
   Notice({
     required this.id,
@@ -35,6 +36,7 @@ class Notice {
     this.isUrgent = false,
     this.isDeleted = false,
     this.isRead = true, // 기본값 읽음(=강조 안함)
+    this.doc,
   });
 
   factory Notice.fromFirestore(
@@ -96,6 +98,7 @@ class Notice {
       isImportant: data['is_important'] ?? false,
       isUrgent: data['is_urgent'] ?? false,
       isDeleted: data['is_deleted'] ?? false,
+      doc: doc,
     );
   }
 }

@@ -11,6 +11,7 @@ import '../../widgets/like_button.dart';
 import '../../widgets/common/bounceable.dart'; // Toss-style Interaction // ★ 추가
 import 'group_detail_screen.dart';
 import 'group_create_screen.dart';
+import 'group_edit_screen.dart'; // ★ 추가
 
 class GroupListScreen extends StatefulWidget {
   final String filterType; // 'all', 'my', 'liked'
@@ -140,8 +141,9 @@ class _GroupListScreenState extends State<GroupListScreen> {
             physics: const NeverScrollableScrollPhysics(), // 외부 ListView 스크롤 사용
             initialItemCount: _displayedLikedGroups.length,
             itemBuilder: (context, index, animation) {
-              if (index >= _displayedLikedGroups.length)
+              if (index >= _displayedLikedGroups.length) {
                 return const SizedBox();
+              }
               return _buildAnimatedGroupItem(
                 _displayedLikedGroups[index],
                 animation,
@@ -244,7 +246,7 @@ class _GroupListScreenState extends State<GroupListScreen> {
                     child: _buildGroupCard(group),
                   ),
                 );
-              }).toList(),
+              }),
           ],
         );
       },
@@ -292,7 +294,7 @@ class _GroupListScreenState extends State<GroupListScreen> {
     bool isExpired = group.isExpired;
 
     return Bounceable(
-      onTap: isExpired
+      onTap: (isExpired && !group.isMyGroup && !_isAdmin)
           ? null
           : () {
               Navigator.push(
@@ -401,7 +403,48 @@ class _GroupListScreenState extends State<GroupListScreen> {
 
     return Slidable(
       key: Key(group.id),
-      enabled: _isAdmin, // 관리자만 슬라이드 가능
+      enabled: _isAdmin || group.isMyGroup, // 내 글이거나 관리자면 가능
+      startActionPane: group.isMyGroup
+          ? ActionPane(
+              motion: const ScrollMotion(),
+              children: [
+                CustomSlidableAction(
+                  onPressed: (context) {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => GroupEditScreen(group: group),
+                      ),
+                    );
+                  },
+                  backgroundColor: const Color(0xFF3182F6), // 파란색
+                  foregroundColor: Colors.white,
+                  borderRadius: BorderRadius.circular(20),
+                  child: Container(
+                    decoration: BoxDecoration(
+                      border: Border.all(color: const Color(0xFFE5E8EB)),
+                      borderRadius: BorderRadius.circular(20),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Icon(Icons.edit_rounded, size: 28),
+                        SizedBox(height: 4),
+                        Text(
+                          "수정",
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            )
+          : null,
       endActionPane: ActionPane(
         motion: const ScrollMotion(),
         children: [
@@ -409,25 +452,26 @@ class _GroupListScreenState extends State<GroupListScreen> {
             onPressed: (context) {
               _confirmDelete(group);
             },
-            backgroundColor: const Color(
-              0xFFE93D3D,
-            ).withOpacity(0.8), // 브랜드 레드 + 투명도
+            backgroundColor: const Color(0xFFE93D3D).withOpacity(0.8),
             foregroundColor: Colors.white,
             borderRadius: BorderRadius.circular(20),
             child: Container(
               decoration: BoxDecoration(
-                border: Border.all(color: const Color(0xFFE5E8EB)), // 회색 보더 추가
+                border: Border.all(color: const Color(0xFFE5E8EB)),
                 borderRadius: BorderRadius.circular(20),
               ),
               alignment: Alignment.center,
-              child: const Column(
+              child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  Icon(Icons.delete, size: 28),
-                  SizedBox(height: 4),
+                  const Icon(Icons.delete, size: 28),
+                  const SizedBox(height: 4),
                   Text(
-                    "삭제 (관리자)",
-                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold),
+                    _isAdmin ? "삭제 (관리자)" : "삭제",
+                    style: const TextStyle(
+                      fontSize: 10,
+                      fontWeight: FontWeight.bold,
+                    ),
                   ),
                 ],
               ),
@@ -436,7 +480,7 @@ class _GroupListScreenState extends State<GroupListScreen> {
         ],
       ),
       child: Bounceable(
-        onTap: isExpired
+        onTap: (isExpired && !group.isMyGroup && !_isAdmin)
             ? null
             : () {
                 Navigator.push(
@@ -541,6 +585,20 @@ class _GroupListScreenState extends State<GroupListScreen> {
                       style: TextStyle(color: Colors.grey[600], fontSize: 13),
                     ),
                     const SizedBox(width: 12),
+                    // 댓글 수 표시 (추가)
+                    if (group.qnaList.isNotEmpty) ...[
+                      Icon(
+                        Icons.chat_bubble_outline_rounded,
+                        size: 15,
+                        color: Colors.grey[600],
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        "${group.qnaList.length}",
+                        style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                      ),
+                      const SizedBox(width: 12),
+                    ],
                     Container(width: 1, height: 10, color: Colors.grey[300]),
                     const SizedBox(width: 12),
                     Text(

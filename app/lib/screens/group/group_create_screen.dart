@@ -120,11 +120,11 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
               hintStyle: TextStyle(color: Color(0xFFC5C8CE)), // 흐릿하게
               filled: true,
               fillColor: Colors.white,
-              enabledBorder: const OutlineInputBorder(
+              enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(color: Color(0xFFE5E8EB)),
                 borderRadius: BorderRadius.all(Radius.circular(12)),
               ),
-              focusedBorder: const OutlineInputBorder(
+              focusedBorder: OutlineInputBorder(
                 borderSide: BorderSide(color: Color(0xFF3182F6)),
                 borderRadius: BorderRadius.all(Radius.circular(12)),
               ),
@@ -140,11 +140,11 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
               hintStyle: TextStyle(color: Color(0xFFC5C8CE)), // 흐릿하게
               filled: true,
               fillColor: Colors.white,
-              enabledBorder: const OutlineInputBorder(
+              enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(color: Color(0xFFE5E8EB)),
                 borderRadius: BorderRadius.all(Radius.circular(12)),
               ),
-              focusedBorder: const OutlineInputBorder(
+              focusedBorder: OutlineInputBorder(
                 borderSide: BorderSide(color: Color(0xFF3182F6)),
                 borderRadius: BorderRadius.all(Radius.circular(12)),
               ),
@@ -279,11 +279,11 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
               hintStyle: TextStyle(color: Color(0xFFC5C8CE)), // 흐릿하게
               filled: true,
               fillColor: Colors.white,
-              enabledBorder: const OutlineInputBorder(
+              enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(color: Color(0xFFE5E8EB)),
                 borderRadius: BorderRadius.all(Radius.circular(12)),
               ),
-              focusedBorder: const OutlineInputBorder(
+              focusedBorder: OutlineInputBorder(
                 borderSide: BorderSide(color: Color(0xFF3182F6)),
                 borderRadius: BorderRadius.all(Radius.circular(12)),
               ),
@@ -339,11 +339,11 @@ class _GroupCreateScreenState extends State<GroupCreateScreen> {
               hintStyle: TextStyle(color: Color(0xFFB0B8C1)), // 흐릿하게
               filled: true,
               fillColor: Colors.white,
-              enabledBorder: const OutlineInputBorder(
+              enabledBorder: OutlineInputBorder(
                 borderSide: BorderSide(color: Color(0xFFE5E8EB)),
                 borderRadius: BorderRadius.all(Radius.circular(12)),
               ),
-              focusedBorder: const OutlineInputBorder(
+              focusedBorder: OutlineInputBorder(
                 borderSide: BorderSide(color: Color(0xFF3182F6)),
                 borderRadius: BorderRadius.all(Radius.circular(12)),
               ),

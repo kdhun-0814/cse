@@ -215,13 +215,15 @@ class _AdminNoticeManagementScreenState
                 // 공통 필터링 로직
                 final filtered = allNotices.where((n) {
                   if (_selectedCategory != "전체" &&
-                      n.category != _selectedCategory)
+                      n.category != _selectedCategory) {
                     return false;
+                  }
                   if (_searchQuery.isNotEmpty &&
                       !n.title.toLowerCase().contains(
                         _searchQuery.toLowerCase(),
-                      ))
+                      )) {
                     return false;
+                  }
                   return true;
                 }).toList();
 

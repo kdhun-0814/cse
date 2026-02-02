@@ -37,8 +37,9 @@ class _ApprovalWaitingScreenState extends State<ApprovalWaitingScreen> {
           .get();
 
       if (!userDoc.exists) {
-        if (mounted)
+        if (mounted) {
           ToastUtils.show(context, "유저 정보를 찾을 수 없습니다.", isError: true);
+        }
         _logout();
         return;
       }

@@ -189,7 +189,7 @@ class _WidgetManagementScreenState extends State<WidgetManagementScreen> {
         ),
         trailing: Switch(
           value: widgetConfig.isVisible,
-          activeColor: const Color(0xFF3182F6),
+          activeThumbColor: const Color(0xFF3182F6),
           onChanged: (bool value) {
             HapticFeedback.lightImpact(); // 햅틱 피드백 추가
             setState(() {

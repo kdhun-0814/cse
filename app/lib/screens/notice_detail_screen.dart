@@ -313,7 +313,7 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
                           ),
                         ),
                       );
-                    }).toList(),
+                    }),
                   ],
                 ),
               ),
@@ -489,7 +489,7 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
             ),
             subtitle: const Text("중요 공지 위젯에 상단 노출됩니다."),
             value: _isImportant,
-            activeColor: const Color(0xFF3182F6),
+            activeThumbColor: const Color(0xFF3182F6),
             onChanged: (val) async {
               setState(() {
                 _isImportant = val;
@@ -511,7 +511,7 @@ class _NoticeDetailScreenState extends State<NoticeDetailScreen> {
             ),
             subtitle: const Text("긴급 공지 위젯에 노출됩니다."),
             value: _isUrgent,
-            activeColor: const Color(0xFF3182F6),
+            activeThumbColor: const Color(0xFF3182F6),
             onChanged: (val) async {
               setState(() {
                 _isUrgent = val;

@@ -5,6 +5,7 @@ import '../../models/group.dart';
 import '../../utils/toast_utils.dart';
 import '../../widgets/common/custom_loading_indicator.dart';
 import '../../widgets/common/bounceable.dart';
+import '../../widgets/common/custom_dialog.dart'; // ★ 추가
 
 class GroupEditScreen extends StatefulWidget {
   final Group group;
@@ -39,12 +40,14 @@ class _GroupEditScreenState extends State<GroupEditScreen> {
     _titleController = TextEditingController(text: widget.group.title);
     _contentController = TextEditingController(text: widget.group.content);
     // 태그 리스트를 문자열로 변환 (예: ["#스터디", "#자바"] -> "#스터디 #자바")
-    _tagController =
-        TextEditingController(text: widget.group.hashtags.join(' '));
+    _tagController = TextEditingController(
+      text: widget.group.hashtags.join(' '),
+    );
     _linkController = TextEditingController(text: widget.group.linkUrl ?? '');
     _isOfficial = widget.group.isOfficial;
-    _maxMembers =
-        widget.group.maxMembers == -1 ? 21 : widget.group.maxMembers.toDouble();
+    _maxMembers = widget.group.maxMembers == -1
+        ? 21
+        : widget.group.maxMembers.toDouble();
     _deadline = widget.group.deadline;
   }
 
@@ -105,6 +108,66 @@ class _GroupEditScreenState extends State<GroupEditScreen> {
     }
   }
 
+  Future<void> _deleteGroup() async {
+    showDialog(
+      context: context,
+      builder: (ctx) => CustomDialog(
+        title: "모집 삭제",
+        contentText: "정말로 이 모집글을 삭제할까요?\n삭제 후에는 복구할 수 없어요.",
+        cancelText: "취소",
+        confirmText: "삭제",
+        isDestructive: true,
+        onConfirm: () async {
+          setState(() => _isLoading = true);
+          try {
+            await FirestoreService().deleteGroup(widget.group.id);
+            if (mounted) {
+              Navigator.pop(ctx);
+              Navigator.pop(context);
+              Navigator.pop(context);
+              ToastUtils.show(context, "모집이 삭제되었어요.");
+              widget.onGroupUpdated?.call();
+            }
+          } catch (e) {
+            if (mounted) {
+              Navigator.pop(ctx);
+              ToastUtils.show(context, "삭제 중 오류가 발생했어요.", isError: true);
+              setState(() => _isLoading = false);
+            }
+          }
+        },
+      ),
+    );
+  }
+
+  Future<void> _closeGroup() async {
+    setState(() => _isLoading = true);
+    try {
+      await FirestoreService().closeGroup(widget.group.id);
+      if (mounted) {
+        ToastUtils.show(context, "모집이 마감되었어요.");
+        widget.onGroupUpdated?.call();
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
+  Future<void> _reopenGroup() async {
+    setState(() => _isLoading = true);
+    try {
+      await FirestoreService().reopenGroup(widget.group.id);
+      if (mounted) {
+        ToastUtils.show(context, "모집이 재개되었어요.");
+        widget.onGroupUpdated?.call();
+        Navigator.pop(context);
+      }
+    } catch (e) {
+      if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -133,11 +196,11 @@ class _GroupEditScreenState extends State<GroupEditScreen> {
                 hintStyle: TextStyle(color: Color(0xFFC5C8CE)),
                 filled: true,
                 fillColor: Colors.white,
-                enabledBorder: const OutlineInputBorder(
+                enabledBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: Color(0xFFE5E8EB)),
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
-                focusedBorder: const OutlineInputBorder(
+                focusedBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: Color(0xFF3182F6)),
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
@@ -153,11 +216,11 @@ class _GroupEditScreenState extends State<GroupEditScreen> {
                 hintStyle: TextStyle(color: Color(0xFFC5C8CE)),
                 filled: true,
                 fillColor: Colors.white,
-                enabledBorder: const OutlineInputBorder(
+                enabledBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: Color(0xFFE5E8EB)),
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
-                focusedBorder: const OutlineInputBorder(
+                focusedBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: Color(0xFF3182F6)),
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
@@ -187,10 +250,7 @@ class _GroupEditScreenState extends State<GroupEditScreen> {
                   ),
                   Text(
                     _maxMembers >= 21 ? "제한 없음" : "${_maxMembers.toInt()}명",
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                    ),
+                    style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
                   ),
                 ],
               ),
@@ -211,10 +271,14 @@ class _GroupEditScreenState extends State<GroupEditScreen> {
                   color: Color(0xFF3182F6),
                 ),
                 onTap: () async {
+                  final now = DateTime.now();
+                  // 마감일이 이미 지났다면, 달력의 시작일을 마감일로 설정하여 에러 방지
+                  final firstDate = _deadline.isBefore(now) ? _deadline : now;
+
                   final date = await showDatePicker(
                     context: context,
                     initialDate: _deadline,
-                    firstDate: DateTime.now(),
+                    firstDate: firstDate,
                     lastDate: DateTime(2030),
                   );
                   if (date != null) setState(() => _deadline = date);
@@ -231,11 +295,11 @@ class _GroupEditScreenState extends State<GroupEditScreen> {
                 hintStyle: TextStyle(color: Color(0xFFC5C8CE)),
                 filled: true,
                 fillColor: Colors.white,
-                enabledBorder: const OutlineInputBorder(
+                enabledBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: Color(0xFFE5E8EB)),
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
-                focusedBorder: const OutlineInputBorder(
+                focusedBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: Color(0xFF3182F6)),
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
@@ -293,11 +357,11 @@ class _GroupEditScreenState extends State<GroupEditScreen> {
                 hintStyle: TextStyle(color: Color(0xFFB0B8C1)),
                 filled: true,
                 fillColor: Colors.white,
-                enabledBorder: const OutlineInputBorder(
+                enabledBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: Color(0xFFE5E8EB)),
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
-                focusedBorder: const OutlineInputBorder(
+                focusedBorder: OutlineInputBorder(
                   borderSide: BorderSide(color: Color(0xFF3182F6)),
                   borderRadius: BorderRadius.all(Radius.circular(12)),
                 ),
@@ -332,6 +396,76 @@ class _GroupEditScreenState extends State<GroupEditScreen> {
                 ),
               ),
             ),
+            const SizedBox(height: 12),
+
+            // 마감 / 마감 취소 버튼
+            if (!_isLoading)
+              SizedBox(
+                width: double.infinity,
+                child: Bounceable(
+                  onTap: () {
+                    if (widget.group.isManuallyClosed) {
+                      _reopenGroup();
+                    } else {
+                      _closeGroup();
+                    }
+                  },
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(
+                        color: widget.group.isManuallyClosed
+                            ? const Color(0xFF3182F6)
+                            : const Color(0xFFE5E8EB),
+                      ),
+                    ),
+                    alignment: Alignment.center,
+                    child: Text(
+                      widget.group.isManuallyClosed ? "마감 취소 (모집 재개)" : "마감하기",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: widget.group.isManuallyClosed
+                            ? const Color(0xFF3182F6)
+                            : const Color(0xFF4E5968),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            const SizedBox(height: 12),
+
+            // 삭제 버튼
+            if (!_isLoading)
+              SizedBox(
+                width: double.infinity,
+                child: Bounceable(
+                  onTap: _deleteGroup,
+                  borderRadius: BorderRadius.circular(16),
+                  child: Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFFF4E4E)),
+                    ),
+                    alignment: Alignment.center,
+                    child: const Text(
+                      "삭제하기",
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFFFF4E4E),
+                      ),
+                    ),
+                  ),
+                ),
+              ),
             const SizedBox(height: 40),
           ],
         ),

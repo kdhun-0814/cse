@@ -29,7 +29,7 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
 
   final List<String> _categories = ['학사', '장학', '취업', '학과행사', '외부행사', '공모전'];
 
-  List<XFile> _selectedImages = [];
+  final List<XFile> _selectedImages = [];
   bool _isLoading = false;
 
   @override
@@ -178,7 +178,7 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
                     ),
                     const SizedBox(height: 12),
                     DropdownButtonFormField<String>(
-                      value: _category,
+                      initialValue: _category,
                       items: _categories
                           .map(
                             (cat) => DropdownMenuItem(value: cat, child: Text(cat)),
@@ -247,7 +247,7 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
                         ],
                       ),
                       value: _isImportant,
-                      activeColor: const Color(0xFF3182F6),
+                      activeThumbColor: const Color(0xFF3182F6),
                       onChanged: (val) {
                         HapticFeedback.lightImpact();
                         setState(() => _isImportant = val);
@@ -284,7 +284,7 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
                         ),
                       ),
                       value: _isUrgent,
-                      activeColor: const Color(0xFF3182F6),
+                      activeThumbColor: const Color(0xFF3182F6),
                       onChanged: (val) {
                         HapticFeedback.lightImpact();
                         setState(() => _isUrgent = val);
@@ -446,7 +446,7 @@ class _WriteNoticeScreenState extends State<WriteNoticeScreen> {
                           ],
                         );
                       },
-                    ).toList(), // asMap().entries ... toList() fixed validation
+                    ), // asMap().entries ... toList() fixed validation
                   ],
                 ),
               ),

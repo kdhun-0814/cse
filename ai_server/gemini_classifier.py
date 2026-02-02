@@ -4,9 +4,13 @@ import time
 import os
 
 # 1. API 키 설정
-# GEMINI_API_KEY = "AIzaSyAfiDe3Zbzt2e3aJxHyF6Qqrv_HHWM7tIU" 
-# 보안을 위해 환경변수 사용 권장하지만, 사용자 요청에 따라 하드코딩 유지 혹은 환경변수 처리
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY", "AIzaSyAfiDe3Zbzt2e3aJxHyF6Qqrv_HHWM7tIU")
+# 보안을 위해 환경변수 사용 권장
+GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
+
+if not GEMINI_API_KEY:
+    # 로컬 테스트용 (필요시 주석 처리 후 입력, 절대 커밋 금지)
+    # GEMINI_API_KEY = "YOUR_API_KEY_HERE"
+    print("⚠️ GEMINI_API_KEY 환경변수가 설정되지 않았습니다.")
 
 def keyword_fallback(title):
     """

@@ -1,5 +1,5 @@
 import 'package:flutter/material.dart';
-import '../../widgets/animated_bottom_nav_item.dart'; // Import 유지 (혹시 필요할 수 있으나 하단바 제거로 안쓸수도 있음, 일단 유지)
+// Import 유지 (혹시 필요할 수 있으나 하단바 제거로 안쓸수도 있음, 일단 유지)
 import 'group_list_screen.dart';
 import 'group_create_screen.dart';
 

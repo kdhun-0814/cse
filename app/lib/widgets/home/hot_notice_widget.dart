@@ -38,8 +38,9 @@ class _HotNoticeWidgetState extends State<HotNoticeWidget> {
     return FutureBuilder<QuerySnapshot>(
       future: _noticesFuture,
       builder: (context, snapshot) {
-        if (!snapshot.hasData)
+        if (!snapshot.hasData) {
           return const Center(child: CustomLoadingIndicator());
+        }
 
         final notices = snapshot.data!.docs
             .map((doc) => Notice.fromFirestore(doc, []))
@@ -60,13 +61,13 @@ class _HotNoticeWidgetState extends State<HotNoticeWidget> {
                   padding: EdgeInsets.fromLTRB(20, 20, 20, 16),
                   child: Row(
                     children: [
-                      const Icon(
+                      Icon(
                         Icons.whatshot_rounded,
                         color: Color(0xFFFF5252),
                         size: 24,
                       ),
-                      const SizedBox(width: 8),
-                      const Text(
+                      SizedBox(width: 8),
+                      Text(
                         "HOT 공지",
                         style: TextStyle(
                           fontSize: 18,
@@ -116,13 +117,13 @@ class _HotNoticeWidgetState extends State<HotNoticeWidget> {
                 padding: EdgeInsets.fromLTRB(20, 20, 20, 16),
                 child: Row(
                   children: [
-                    const Icon(
+                    Icon(
                       Icons.whatshot_rounded,
                       color: Color(0xFFFF5252),
                       size: 24,
                     ),
-                    const SizedBox(width: 8),
-                    const Text(
+                    SizedBox(width: 8),
+                    Text(
                       "HOT 공지",
                       style: TextStyle(
                         fontSize: 18,

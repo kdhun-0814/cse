@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:cloud_firestore/cloud_firestore.dart';
 import '../models/notice.dart';
 import '../services/firestore_service.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // NEW
 import 'notice_detail_screen.dart';
 import '../widgets/common/custom_loading_indicator.dart';
 import '../widgets/common/bounceable.dart'; // Toss-style Interaction
@@ -30,7 +30,14 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
   final FirestoreService _firestoreService = FirestoreService();
   final ScrollController _scrollController = ScrollController();
   bool _isScrolled = false;
-  late Stream<List<Notice>> _noticeStream;
+
+  // Pagination State
+  List<Notice> _notices = [];
+  bool _isLoading = false;
+  bool _hasMore = true;
+  DocumentSnapshot? _lastDocument;
+  static const int _limit = 20;
+
   String _searchQuery = "";
   final FocusNode _searchFocus = FocusNode(); // FocusNode 추가
   String _userRole = ''; // NEW
@@ -41,7 +48,9 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
     _searchFocus.addListener(() {
       setState(() {}); // 포커스 변경 시 리빌드
     });
-    _noticeStream = _firestoreService.getNotices(); // 스트림 초기화
+
+    // Initial Fetch
+    _fetchNotices(refresh: true);
 
     // 방문 기록 업데이트 (배지 초기화)
     if (widget.title != '전체') {
@@ -55,13 +64,7 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
       }
     });
 
-    _scrollController.addListener(() {
-      if (_scrollController.offset > 10) {
-        if (!_isScrolled) setState(() => _isScrolled = true);
-      } else {
-        if (_isScrolled) setState(() => _isScrolled = false);
-      }
-    });
+    _scrollController.addListener(_onScroll);
   }
 
   @override
@@ -69,6 +72,84 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
     _searchFocus.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onScroll() {
+    if (_scrollController.hasClients) {
+      // 1. Appbar style
+      if (_scrollController.offset > 10) {
+        if (!_isScrolled) setState(() => _isScrolled = true);
+      } else {
+        if (_isScrolled) setState(() => _isScrolled = false);
+      }
+
+      // 2. Infinite Scroll
+      if (_scrollController.position.pixels >=
+              _scrollController.position.maxScrollExtent - 200 &&
+          !_isLoading &&
+          _hasMore) {
+        _fetchNotices();
+      }
+    }
+  }
+
+  Future<void> _fetchNotices({bool refresh = false}) async {
+    if (_isLoading) return;
+    setState(() => _isLoading = true);
+
+    try {
+      if (refresh) {
+        _notices.clear();
+        _lastDocument = null;
+        _hasMore = true;
+      }
+
+      // Filter Logic passing to Service
+      String? category;
+      bool isUrgentOnly = false;
+      bool isImportantOnly = false;
+
+      if (widget.title == '전체') {
+        // No filter
+      } else if (widget.title == '긴급 공지') {
+        isUrgentOnly = true;
+      } else if (widget.title == '중요 공지') {
+        isImportantOnly = true;
+      } else {
+        category = widget.title;
+      }
+
+      final newNotices = await _firestoreService.fetchNotices(
+        limit: _limit,
+        startAfter: _lastDocument,
+        category: category,
+        isUrgentOnly: isUrgentOnly,
+        isImportantOnly: isImportantOnly,
+      );
+
+      if (newNotices.length < _limit) {
+        _hasMore = false;
+      }
+
+      if (newNotices.isNotEmpty) {
+        // for cursor
+        _lastDocument = newNotices.last.doc;
+
+        setState(() {
+          if (refresh) {
+            _notices = newNotices;
+          } else {
+            _notices.addAll(newNotices);
+          }
+        });
+      } else {
+        setState(() {}); // UI Update
+      }
+    } catch (e) {
+      print("Error fetching notices: $e");
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
@@ -152,143 +233,140 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
           const SizedBox(width: 8),
         ],
       ),
-      body: Column(
-        children: [
-          // 검색 바
-          Container(
-            padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
-            color: const Color(0xFFF2F4F6),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Bounceable(
-                    onTap: () {
-                      HapticFeedback.lightImpact(); // 짧은 진동
-                      _searchFocus.requestFocus(); // 터치 시 포커스 요청
-                    },
-                    immediate: true, // 즉시 실행
-                    scaleFactor: 0.98, // 미세한 반응
-                    borderRadius: BorderRadius.circular(12),
-                    child: Container(
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: _searchFocus.hasFocus
-                              ? const Color(0xFF3182F6) // Brand Color
-                              : const Color(0xFFE5E8EB),
-                          width: _searchFocus.hasFocus ? 2 : 1, // 두께 강조
-                        ),
-                      ),
-                      child: TextField(
-                        focusNode: _searchFocus, // FocusNode 연결
-                        cursorColor: const Color(0xFF3182F6), // 커서 색상 변경
-                        onTap: () {
-                          HapticFeedback.lightImpact(); // 짧은 진동
-                        },
-                        onChanged: (value) {
-                          setState(() {
-                            _searchQuery = value;
-                          });
-                        },
-                        decoration: const InputDecoration(
-                          hintText: "제목 또는 내용으로 검색해보세요",
-                          prefixIcon: Icon(
-                            Icons.search,
-                            color: Color(0xFF8B95A1),
+      body: RefreshIndicator(
+        onRefresh: () async {
+          await _fetchNotices(refresh: true);
+        },
+        color: const Color(0xFF3182F6),
+        child: Column(
+          children: [
+            // 검색 바
+            Container(
+              padding: const EdgeInsets.fromLTRB(20, 10, 20, 10),
+              color: const Color(0xFFF2F4F6),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Bounceable(
+                      onTap: () {
+                        HapticFeedback.lightImpact(); // 짧은 진동
+                        _searchFocus.requestFocus(); // 터치 시 포커스 요청
+                      },
+                      immediate: true, // 즉시 실행
+                      scaleFactor: 0.98, // 미세한 반응
+                      borderRadius: BorderRadius.circular(12),
+                      child: Container(
+                        decoration: BoxDecoration(
+                          color: Colors.white,
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: _searchFocus.hasFocus
+                                ? const Color(0xFF3182F6) // Brand Color
+                                : const Color(0xFFE5E8EB),
+                            width: _searchFocus.hasFocus ? 2 : 1, // 두께 강조
                           ),
-                          border: InputBorder.none,
-                          contentPadding: EdgeInsets.symmetric(
-                            horizontal: 16,
-                            vertical: 12,
+                        ),
+                        child: TextField(
+                          focusNode: _searchFocus, // FocusNode 연결
+                          cursorColor: const Color(0xFF3182F6), // 커서 색상 변경
+                          onTap: () {
+                            HapticFeedback.lightImpact(); // 짧은 진동
+                          },
+                          onChanged: (value) {
+                            setState(() {
+                              _searchQuery = value;
+                            });
+                          },
+                          decoration: const InputDecoration(
+                            hintText: "제목 또는 내용으로 검색해보세요",
+                            prefixIcon: Icon(
+                              Icons.search,
+                              color: Color(0xFF8B95A1),
+                            ),
+                            border: InputBorder.none,
+                            contentPadding: EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
                           ),
                         ),
                       ),
                     ),
                   ),
-                ),
-              ],
+                ],
+              ),
             ),
-          ),
 
-          // 리스트
-          Expanded(
-            child: StreamBuilder<List<Notice>>(
-              stream: _noticeStream,
-              builder: (context, snapshot) {
-                if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CustomLoadingIndicator());
-                }
-                if (snapshot.hasError) {
-                  return Center(child: Text("에러 발생: ${snapshot.error}"));
-                }
-
-                final allNotices = snapshot.data ?? [];
-
-                // 필터링 + 검색 로직
-                List<Notice> filteredNotices = allNotices.where((n) {
-                  // 1. 카테고리 필터
-                  bool categoryMatch;
-                  if (widget.title == '전체') {
-                    categoryMatch = true;
-                  } else if (widget.title == '긴급 공지') {
-                    categoryMatch = n.isUrgent ?? false;
-                  } else if (widget.title == '중요 공지') {
-                    categoryMatch = n.isImportant ?? false;
-                  } else {
-                    categoryMatch =
-                        n.category == widget.title ||
-                        widget.title.contains(n.category);
-                  }
-
-                  if (!categoryMatch) return false;
-
-                  // 2. 검색어 필터 (제목+내용)
+            // 리스트
+            Expanded(
+              child: Builder(
+                builder: (context) {
+                  // 검색 필터링 (이미 서버에서 카테고리 등은 필터링됨)
+                  // 검색어 필터 (제목+내용)
+                  List<Notice> visibleNotices = _notices;
                   if (_searchQuery.isNotEmpty) {
                     final query = _searchQuery.toLowerCase();
-                    final titleMatch = n.title.toLowerCase().contains(query);
-                    final contentMatch = n.content.toLowerCase().contains(
-                      query,
-                    );
-                    // content HTML이라 정확한 검색은 아닐 수 있지만 포함 여부는 확인 가능
-                    return titleMatch || contentMatch;
+                    visibleNotices = _notices.where((n) {
+                      final titleMatch = n.title.toLowerCase().contains(query);
+                      final contentMatch = n.content.toLowerCase().contains(
+                        query,
+                      );
+                      return titleMatch || contentMatch;
+                    }).toList();
                   }
 
-                  return true;
-                }).toList();
+                  // 정렬 로직: 스크랩된 공지 상단 고정
+                  // 주의: 리스트를 직접 sort하면 원본 순서가 바뀔 수 있으므로 복사본 사용 권장하나,
+                  // 여기선 보여주는 순서만 중요
+                  visibleNotices.sort((a, b) {
+                    if (a.isScraped != b.isScraped) {
+                      return a.isScraped ? -1 : 1; // 스크랩된 것이 위로
+                    }
+                    // 스크랩 여부가 같으면 날짜 내림차순 (이미 DB에서 정렬되어 오지만 안전장치)
+                    return b.date.compareTo(a.date);
+                  });
 
-                // 정렬 로직: 스크랩된 공지 상단 고정 (스크랩 여부 -> 날짜 내림차순)
-                filteredNotices.sort((a, b) {
-                  if (a.isScraped != b.isScraped) {
-                    return a.isScraped ? -1 : 1; // 스크랩된 것이 위로
+                  if (visibleNotices.isEmpty && !_isLoading) {
+                    // 검색 결과 없음 or 데이터 없음
+                    if (_searchQuery.isNotEmpty) {
+                      return const Center(
+                        child: Text(
+                          "검색 결과가 없어요.",
+                          style: TextStyle(color: Colors.grey),
+                        ),
+                      );
+                    }
+                    // 초기 로딩 중이 아닐 때만 "공지 없음" 표시 -> 초기 로딩은 아래 인디케이터에서 처리
+                    if (_notices.isEmpty) {
+                      return const Center(child: Text("등록된 공지가 없어요."));
+                    }
                   }
-                  // 스크랩 여부가 같으면 날짜 내림차순 (문자열 비교 YYYY.MM.DD)
-                  return b.date.compareTo(a.date);
-                });
 
-                if (filteredNotices.isEmpty) {
-                  return const Center(
-                    child: Text(
-                      "검색 결과가 없어요.",
-                      style: TextStyle(color: Colors.grey),
-                    ),
+                  return ListView.separated(
+                    controller: _scrollController,
+                    padding: const EdgeInsets.all(20),
+                    // 로딩 중이면 +1 (인디케이터)
+                    itemCount: visibleNotices.length + (_hasMore ? 1 : 0),
+                    separatorBuilder: (context, index) =>
+                        const SizedBox(height: 12),
+                    itemBuilder: (context, index) {
+                      if (index == visibleNotices.length) {
+                        // 마지막 아이템: 로딩 인디케이터
+                        return const Center(
+                          child: Padding(
+                            padding: EdgeInsets.all(16.0),
+                            child: CustomLoadingIndicator(),
+                          ),
+                        );
+                      }
+                      return _buildListItem(visibleNotices[index]);
+                    },
                   );
-                }
-
-                return ListView.separated(
-                  controller: _scrollController,
-                  padding: const EdgeInsets.all(20),
-                  itemCount: filteredNotices.length,
-                  separatorBuilder: (context, index) =>
-                      const SizedBox(height: 12),
-                  itemBuilder: (context, index) {
-                    return _buildListItem(filteredNotices[index]);
-                  },
-                );
-              },
+                },
+              ),
             ),
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

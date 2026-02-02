@@ -482,8 +482,8 @@ class _HomeScreenState extends State<HomeScreen>
               if (snapshot.hasData && snapshot.data != null) {
                 userData = snapshot.data!.data() as Map<String, dynamic>?;
                 if (userData != null) {
-                  name = "${userData!['last_name']}${userData!['first_name']} 학우님";
-                  studentId = "${userData!['student_id']}";
+                  name = "${userData['last_name']}${userData['first_name']} 학우님";
+                  studentId = "${userData['student_id']}";
                 }
               }
 
@@ -510,10 +510,10 @@ class _HomeScreenState extends State<HomeScreen>
                       child: CircleAvatar(
                         radius: 32,
                         backgroundColor: const Color(0xFFF2F4F6),
-                        backgroundImage: userData != null && userData!['profile_image_url'] != null
-                            ? NetworkImage(userData!['profile_image_url'])
+                        backgroundImage: userData != null && userData['profile_image_url'] != null
+                            ? NetworkImage(userData['profile_image_url'])
                             : null,
-                        child: userData == null || userData!['profile_image_url'] == null
+                        child: userData == null || userData['profile_image_url'] == null
                             ? const Icon(
                                 Icons.person,
                                 size: 32,
@@ -639,7 +639,7 @@ class _HomeScreenState extends State<HomeScreen>
                               scale: 0.9,
                               child: Switch(
                                 value: isEnabled,
-                                activeColor: const Color(0xFF3182F6),
+                                activeThumbColor: const Color(0xFF3182F6),
                                 onChanged: (val) {
                                   HapticFeedback.lightImpact();
                                   _firestoreService.togglePushSetting(val);

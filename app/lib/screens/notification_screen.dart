@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import '../../services/firestore_service.dart';
 import '../../models/notice.dart';
 import 'notice_detail_screen.dart';
-import 'package:intl/intl.dart';
 import '../widgets/common/bounceable.dart';
 import '../widgets/common/custom_dialog.dart';
 import '../utils/toast_utils.dart';

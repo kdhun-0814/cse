@@ -107,7 +107,8 @@ class FirestoreService {
 
   // --- 1. 공지사항 (Notice) ---
 
-  // 공지사항 실시간 스트림 (Rx.combineLatest2 사용)
+  // 공지사항 실시간 스트림 (Rx.combineLatest2 사용) -> Future 기반 페이지네이션으로 변경 예정
+  // 기존 코드 유지를 위해 남겨두지만, 메인 목록은 아래 getNoticesPaginated 사용 권장
   Stream<List<Notice>> getNotices() {
     String uid = _auth.currentUser!.uid;
 
@@ -132,6 +133,49 @@ class FirestoreService {
           .where((n) => !n.isDeleted) // 숨김 처리된 공지 제외
           .toList();
     });
+  }
+
+  // ★ 페이지네이션 지원 공지사항 가져오기 (Future)
+  Future<List<Notice>> fetchNotices({
+    int limit = 20,
+    DocumentSnapshot? startAfter,
+    String? category,
+    bool isUrgentOnly = false,
+    bool isImportantOnly = false,
+  }) async {
+    String uid = _auth.currentUser!.uid;
+
+    Query query = _db.collection('notices');
+
+    // 필터링 적용
+    if (isUrgentOnly) {
+      query = query.where('is_urgent', isEqualTo: true);
+    } else if (isImportantOnly) {
+      query = query.where('is_important', isEqualTo: true);
+    } else if (category != null && category != '전체') {
+      query = query.where('category', isEqualTo: category);
+    }
+
+    // 정렬 & Limit
+    query = query.orderBy('crawled_at', descending: true).limit(limit);
+
+    if (startAfter != null) {
+      query = query.startAfterDocument(startAfter);
+    }
+
+    final noticeSnapshot = await query.get();
+
+    // 유저 정보는 한 번만 가져오거나 캐시된 것 사용 (여기서는 매번 최신 상태 확인을 위해 get)
+    // 최적화를 위해선 유저 정보를 파라미터로 받거나 별도 관리 가능
+    DocumentSnapshot userDoc = await _db.collection('users').doc(uid).get();
+    final userData = userDoc.data() as Map<String, dynamic>?;
+    final scraps = List<String>.from(userData?['scraps'] ?? []);
+    final readNotices = List<String>.from(userData?['readNotices'] ?? []);
+
+    return noticeSnapshot.docs
+        .map((doc) => Notice.fromFirestore(doc, scraps, readNotices))
+        .where((n) => !n.isDeleted)
+        .toList();
   }
 
   // ★ 알림 설정 토글 (Firestore에 저장)
@@ -180,7 +224,7 @@ class FirestoreService {
     final noticeStream = _db
         .collection('notices')
         .orderBy('crawled_at', descending: true)
-        .limit(100)
+        .limit(30) // ★ 100 -> 30으로 최적화 (초기 로딩 속도 개선)
         .snapshots();
 
     final userStream = _db.collection('users').doc(uid).snapshots();
@@ -704,10 +748,16 @@ class FirestoreService {
     }
   }
 
-  // 모임 마감하기
   Future<void> closeGroup(String groupId) async {
     await _db.collection('groups').doc(groupId).update({
       'isManuallyClosed': true,
+    });
+  }
+
+  // 모임 마감 취소 (재오픈)
+  Future<void> reopenGroup(String groupId) async {
+    await _db.collection('groups').doc(groupId).update({
+      'isManuallyClosed': false,
     });
   }
 
@@ -936,6 +986,28 @@ class FirestoreService {
       });
     } catch (e) {
       throw Exception('Failed to update user name: $e');
+    }
+  }
+
+  // ★ 회원 탈퇴 (Account Deletion)
+  Future<void> deleteUser() async {
+    User? user = _auth.currentUser;
+    if (user == null) return;
+
+    try {
+      String uid = user.uid;
+
+      // 1. Firestore 유저 데이터 삭제
+      await _db.collection('users').doc(uid).delete();
+
+      // 2. (선택) 사용자가 작성한 게시글/댓글이 있다면 삭제하거나 '알수없음' 처리
+      // 현재는 공지사항 조회 위주이므로 스크랩 데이터 등은 유저 문서 삭제로 충분
+
+      // 3. Firebase Auth 계정 삭제
+      // 주: 재인증(Re-authenticate)이 필요할 수 있음 (UI에서 처리 권장)
+      await user.delete();
+    } catch (e) {
+      throw Exception("회원 탈퇴 중 오류가 발생했습니다: $e");
     }
   }
 }

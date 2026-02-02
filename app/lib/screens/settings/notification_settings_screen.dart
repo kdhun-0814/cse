@@ -157,7 +157,7 @@ class _NotificationSettingsScreenState
             ),
           ],
         ),
-        activeColor: const Color(0xFF3182F6),
+        activeThumbColor: const Color(0xFF3182F6),
         contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 4),
       ),
     );

@@ -61,6 +61,26 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
     );
   }
 
+  // 1-1. 모집 마감 취소 (재오픈)
+  void _reopenGroup() {
+    showDialog(
+      context: context,
+      builder: (ctx) => CustomDialog(
+        title: "마감 취소",
+        contentText: "다시 모집을 시작할까요?",
+        cancelText: "아니요",
+        confirmText: "시작하기",
+        onConfirm: () async {
+          await _firestoreService.reopenGroup(widget.group.id);
+          if (mounted) {
+            Navigator.pop(ctx);
+            ToastUtils.show(context, "모집이 다시 시작되었어요.");
+          }
+        },
+      ),
+    );
+  }
+
   // 2. 모집 삭제
   void _deleteGroup() {
     showDialog(
@@ -180,9 +200,9 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
           // 다이얼로그 내부 상태(체크박스) 갱신용
           builder: (context, setDialogState) {
             String title = "질문 남기기";
-            if (editingId != null)
+            if (editingId != null) {
               title = "수정하기";
-            else if (replyToId != null)
+            } else if (replyToId != null)
               title = "답변 남기기";
 
             return CustomDialog(
@@ -547,11 +567,15 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                               onTap: _deleteGroup,
                               borderRadius: BorderRadius.circular(12),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFFE5E8EB)),
+                                  border: Border.all(
+                                    color: const Color(0xFFE5E8EB),
+                                  ),
                                 ),
                                 alignment: Alignment.center,
                                 child: const Text(
@@ -567,21 +591,33 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                           const SizedBox(width: 12),
                           Expanded(
                             child: Bounceable(
-                              onTap: group.isManuallyClosed ? null : _closeGroup,
+                              onTap: () {
+                                if (group.isManuallyClosed) {
+                                  _reopenGroup();
+                                } else {
+                                  _closeGroup();
+                                }
+                              },
                               borderRadius: BorderRadius.circular(12),
                               child: Container(
-                                padding: const EdgeInsets.symmetric(vertical: 16),
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 16,
+                                ),
                                 decoration: BoxDecoration(
                                   color: Colors.white,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(color: const Color(0xFFE5E8EB)),
+                                  border: Border.all(
+                                    color: const Color(0xFFE5E8EB),
+                                  ),
                                 ),
                                 alignment: Alignment.center,
                                 child: Text(
-                                  group.isManuallyClosed ? "마감완료" : "마감하기",
-                                  style: const TextStyle(
+                                  group.isManuallyClosed ? "마감 취소" : "마감하기",
+                                  style: TextStyle(
                                     fontWeight: FontWeight.bold,
-                                    color: Color(0xFF191F28),
+                                    color: group.isManuallyClosed
+                                        ? const Color(0xFF3182F6) // 마감 취소는 파란색
+                                        : const Color(0xFF191F28),
                                   ),
                                 ),
                               ),
@@ -703,15 +739,43 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                   crossAxisAlignment:
                       CrossAxisAlignment.center, // 이름과 날짜는 중앙 정렬
                   children: [
-                    Text(
-                      item.isAnonymous
-                          ? "익명${item.anonymousId ?? ''}"
-                          : item.userName,
-                      style: TextStyle(
-                        fontWeight: FontWeight.bold,
-                        fontSize: 15,
-                        color: item.isAnonymous ? Colors.black87 : Colors.black,
-                      ),
+                    Row(
+                      children: [
+                        Text(
+                          item.isAnonymous
+                              ? "익명${item.anonymousId ?? ''}"
+                              : item.userName,
+                          style: TextStyle(
+                            fontWeight: FontWeight.bold,
+                            fontSize: 15,
+                            color: item.userId == widget.group.authorId
+                                ? const Color(0xFF3182F6)
+                                : (item.isAnonymous
+                                      ? Colors.black87
+                                      : Colors.black),
+                          ),
+                        ),
+                        if (item.userId == widget.group.authorId)
+                          Container(
+                            margin: const EdgeInsets.only(left: 4),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: 4,
+                              vertical: 2,
+                            ),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFE8F3FF),
+                              borderRadius: BorderRadius.circular(4),
+                            ),
+                            child: const Text(
+                              "작성자",
+                              style: TextStyle(
+                                fontSize: 10,
+                                fontWeight: FontWeight.bold,
+                                color: Color(0xFF3182F6),
+                              ),
+                            ),
+                          ),
+                      ],
                     ),
                     const SizedBox(width: 8),
                     Text(

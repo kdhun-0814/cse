@@ -1,7 +1,6 @@
-firebase-admin
 selenium
-webdriver-manager
 beautifulsoup4
+firebase-admin
+webdriver-manager
 requests
-pytz
 google-generativeai

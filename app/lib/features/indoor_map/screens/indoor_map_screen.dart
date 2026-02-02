@@ -258,8 +258,9 @@ class _IndoorMapScreenState extends State<IndoorMapScreen> {
   }
 
   Widget _buildMapView() {
-    if (_currentFloorData == null)
+    if (_currentFloorData == null) {
       return const Center(child: Text('데이터가 없습니다.'));
+    }
 
     return Stack(
       children: [

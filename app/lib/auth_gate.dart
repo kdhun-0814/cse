@@ -44,7 +44,7 @@ class _AuthGateState extends State<AuthGate> {
               print("⏳ AuthGate: DB 데이터 가져오는 중...");
               return const Scaffold(
                 backgroundColor: Colors.white,
-                body: Center(child: const CustomLoadingIndicator()),
+                body: Center(child: CustomLoadingIndicator()),
               );
             }
 

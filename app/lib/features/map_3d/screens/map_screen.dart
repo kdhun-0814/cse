@@ -31,7 +31,7 @@ class _MapScreenState extends State<MapScreen> {
   bool _isSearching = false;
 
   // Debug State
-  bool _isDebugMode = false;
+  final bool _isDebugMode = false;
   double _debugX = 0;
   double _debugZ = 0;
 

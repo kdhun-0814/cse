@@ -1,9 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:flutter/services.dart';
 import '../utils/toast_utils.dart';
-import '../widgets/common/custom_dialog.dart';
 import '../widgets/common/bounceable.dart';
 import '../widgets/common/jelly_button.dart';
 import 'signup_screen.dart';

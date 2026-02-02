@@ -4,7 +4,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/firestore_service.dart';
-import 'admin/admin_user_list_screen.dart';
 import '../widgets/common/bounceable.dart';
 import '../widgets/common/custom_dialog.dart';
 import '../utils/toast_utils.dart';
@@ -62,7 +61,11 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
       }
     } catch (e) {
       if (mounted) {
-        ToastUtils.show(context, '메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.', isError: true);
+        ToastUtils.show(
+          context,
+          '메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.',
+          isError: true,
+        );
       }
     }
   }
@@ -146,9 +149,15 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
               firstNameController.text.trim(),
             );
             await _loadUserData();
-            if (mounted) ToastUtils.show(context, "이름이 변경되었습니다."); // 화면의 context 사용
+            if (mounted)
+              ToastUtils.show(context, "이름이 변경되었습니다."); // 화면의 context 사용
           } catch (e) {
-            if (mounted) ToastUtils.show(context, "이름 변경 실패: $e", isError: true); // 화면의 context 사용
+            if (mounted)
+              ToastUtils.show(
+                context,
+                "이름 변경 실패: $e",
+                isError: true,
+              ); // 화면의 context 사용
             setState(() => _isLoading = false);
           }
         },
@@ -239,7 +248,8 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                           child: CircleAvatar(
                             radius: 40,
                             backgroundColor: const Color(0xFFF2F4F6),
-                            backgroundImage: _userData?['profile_image_url'] != null
+                            backgroundImage:
+                                _userData?['profile_image_url'] != null
                                 ? NetworkImage(_userData!['profile_image_url'])
                                 : null,
                             child: _userData?['profile_image_url'] == null
@@ -259,7 +269,9 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                             decoration: BoxDecoration(
                               color: Colors.white,
                               shape: BoxShape.circle,
-                              border: Border.all(color: const Color(0xFFE5E8EB)),
+                              border: Border.all(
+                                color: const Color(0xFFE5E8EB),
+                              ),
                               boxShadow: [
                                 BoxShadow(
                                   color: Colors.black.withOpacity(0.05),
@@ -279,7 +291,7 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                     ),
                   ),
                   const SizedBox(height: 16),
-                  
+
                   // 성명 + 학우님
                   Text(
                     "$name 학우님",
@@ -290,7 +302,7 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                     ),
                   ),
                   const SizedBox(height: 4),
-                  
+
                   // 학번 (도메인 제외)
                   Text(
                     studentId,
@@ -300,7 +312,7 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                     ),
                   ),
                   const SizedBox(height: 12),
-                  
+
                   // 뱃지 표시 (한글 변환)
                   Container(
                     padding: const EdgeInsets.symmetric(
@@ -356,7 +368,7 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  
+
                   // 성명 + 수정 버튼
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -393,11 +405,11 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                     ],
                   ),
                   const Divider(height: 32, color: Color(0xFFF2F4F6)),
-                  
+
                   // 학번
                   _buildInfoRow("학번", studentId),
                   const Divider(height: 32, color: Color(0xFFF2F4F6)),
-                  
+
                   // 계정 권한
                   _buildInfoRow("계정 권한", isAdmin ? "관리자" : "일반 학우"),
                 ],
@@ -474,6 +486,105 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                                   ),
                                 ),
                               ],
+                            ),
+                          ),
+                          const Icon(
+                            Icons.arrow_forward_ios_rounded,
+                            size: 16,
+                            color: Color(0xFFB0B8C1),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                  const Divider(height: 32, color: Color(0xFFF2F4F6)),
+
+                  // 회원 탈퇴 버튼
+                  Bounceable(
+                    onTap: () async {
+                      // 1. 탈퇴 확인 다이얼로그
+                      final confirm = await showDialog<bool>(
+                        context: context,
+                        builder: (ctx) => CustomDialog(
+                          title: "회원 탈퇴",
+                          contentText:
+                              "정말로 탈퇴하시겠습니까?\n작성한 공지사항용 데이터 등은\n복구할 수 없습니다.",
+                          cancelText: "취소",
+                          confirmText: "탈퇴하기",
+                          isDestructive: true, // 빨간 버튼
+                          onConfirm: () => Navigator.pop(ctx, true),
+                          onCancel: () => Navigator.pop(ctx, false),
+                        ),
+                      );
+
+                      if (confirm == true) {
+                        try {
+                          setState(() => _isLoading = true);
+                          await FirestoreService().deleteUser();
+
+                          // 탈퇴 성공 시 로그인 화면으로 이동
+                          if (mounted) {
+                            ToastUtils.show(context, "회원 탈퇴가 완료되었습니다.");
+                            // 앱 재시작 효과 (모든 라우트 제거하고 웰컴/로그인으로)
+                            Navigator.of(
+                              context,
+                            ).pushNamedAndRemoveUntil('/', (route) => false);
+                          }
+                        } on FirebaseAuthException catch (e) {
+                          if (mounted) {
+                            setState(() => _isLoading = false);
+                            if (e.code == 'requires-recent-login') {
+                              ToastUtils.show(
+                                context,
+                                "보안을 위해 다시 로그인한 후 시도해주세요.",
+                                isError: true,
+                              );
+                            } else {
+                              ToastUtils.show(
+                                context,
+                                "탈퇴 실패: ${e.message}",
+                                isError: true,
+                              );
+                            }
+                          }
+                        } catch (e) {
+                          if (mounted) {
+                            setState(() => _isLoading = false);
+                            ToastUtils.show(
+                              context,
+                              "오류가 발생했습니다: $e",
+                              isError: true,
+                            );
+                          }
+                        }
+                      }
+                    },
+                    borderRadius: BorderRadius.circular(12),
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(vertical: 12),
+                      child: Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(8),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFFFF5F5), // 연한 빨강
+                              borderRadius: BorderRadius.circular(8),
+                            ),
+                            child: const Icon(
+                              Icons.person_off_rounded,
+                              color: Color(0xFFFF3B30),
+                              size: 20,
+                            ),
+                          ),
+                          const SizedBox(width: 16),
+                          const Expanded(
+                            child: Text(
+                              "회원 탈퇴",
+                              style: TextStyle(
+                                fontSize: 16,
+                                fontWeight: FontWeight.w500,
+                                color: Color(0xFFFF3B30),
+                              ),
                             ),
                           ),
                           const Icon(

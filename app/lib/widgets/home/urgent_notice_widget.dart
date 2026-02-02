@@ -22,8 +22,8 @@ class _UrgentNoticeWidgetState extends State<UrgentNoticeWidget> {
   final PageController _pageController = PageController();
   final FirestoreService _firestoreService = FirestoreService();
   Timer? _timer;
-  int _currentPage = 0;
-  List<Notice> _cachedNotices = [];
+  final int _currentPage = 0;
+  final List<Notice> _cachedNotices = [];
   String _userRole = '';
 
   @override
