@@ -2,9 +2,9 @@ name: Cafeteria Scraper (Daily Midnight)
 
 on:
   schedule:
-    # 매일 00시 (KST) 실행 -> UTC 15:00 (전날)
+    # 매일 00시 (KST) 실행 -> UTC 기준으로는 전날 15:00
     - cron: '0 15 * * *'
-  workflow_dispatch: # 수동 실행 버튼
+  workflow_dispatch: # 수동 실행 버튼 활성화
 
 jobs:
   scrape-cafeteria:
@@ -18,12 +18,18 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Set up Python
-        uses: actions/setup-python@v4
+        uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11' # 버전 경고 해결 및 성능 향상
+
+      - name: Set up Chrome
+        uses: browser-actions/setup-chrome@v1
+        with:
+          chrome-version: stable # 학식 사이트의 동적 로딩 처리를 위해 필요
 
       - name: Install Dependencies
         run: |
+          python -m pip install --upgrade pip
           pip install -r ai_server/requirements.txt
 
       - name: Run Cafeteria Scraper
