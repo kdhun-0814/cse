@@ -4,3 +4,4 @@ firebase-admin
 webdriver-manager
 requests
 google-generativeai
+pytz

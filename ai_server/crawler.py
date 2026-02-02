@@ -5,6 +5,7 @@ from webdriver_manager.chrome import ChromeDriverManager
 from bs4 import BeautifulSoup
 import firebase_admin
 from firebase_admin import credentials, firestore
+import pytz # timezone calculation
 import time
 import os
 import json
@@ -316,8 +317,35 @@ def crawl_gnu_cse(mode='all', headless=True, page_limit=None):
             doc = doc_ref.get()
             
             # 내용(content)까지 이미 꽉 차있으면 건너뜀
-            if doc.exists and doc.to_dict().get('content'):
-                continue 
+            # --- [Optimized Update Logic] ---
+            # 1. 문서가 이미 존재하면: 메타데이터(조회수, 중요도 등)만 업데이트하고 Selenium Skip
+            if doc.exists:
+                existing_data = doc.to_dict()
+                
+                # Check if content exists
+                has_content = bool(existing_data.get('content'))
+                
+                # Re-evaluate importance (e.g. might have been unpinned)
+                IMPORTANT_KEYWORDS = ["수강신청", "기숙사", "휴학", "복학", "졸업", "국가장학금", "등록금", "장학금"]
+                is_pinned_on_web = "공지" in num_str
+                has_important_keyword = any(keyword in title for keyword in IMPORTANT_KEYWORDS)
+                is_important = is_pinned_on_web or has_important_keyword
+                
+                # Update only metadata
+                doc_ref.set({
+                    'views': existing_data.get('views', 0), # 리스트에서 조회수를 못 가져오면 기존 유지 (ToDo: 리스트에서 조회수 파싱)
+                    'is_important': is_important,
+                    'is_urgent': is_important and check_deadline_urgency(title), # Re-check urgency
+                    # 'date': date_str # 날짜는 보통 안 변하므로 패스
+                }, merge=True)
+
+                if has_content:
+                    print(f"   ⏩ 기존 데이터 존재 (메타 업데이트 완료): {title[:10]}...")
+                    continue 
+                else:
+                    print(f"   ⚠️ 기존 데이터 있으나 본문 없음 -> 상세 수집 진행")
+
+            # 문서가 없거나 본문이 비어있으면 계속 진행 (Selenium) 
 
             # --- [상세 내용 수집] ---
             # Selenium 브라우저를 그대로 넘겨줘서 쿠키 유지!
@@ -404,7 +432,18 @@ def crawl_gnu_cse(mode='all', headless=True, page_limit=None):
 
 if __name__ == "__main__":
     # [GitHub Actions / Cron 모드]
-    # 스케줄러에 의해 실행되므로 루프 없이 1회 실행 후 종료
-    # mode='recent' -> 앞쪽 3페이지만 빠르게 스캔
     print(f"⏰ 정기 크롤링 시작: {datetime.now()}")
+    
+    # 1. 자정 체크 (KST 00:00 ~ 00:59 사이면 초기화 실행)
+    # GitHub Actions Runner is UTC. KST = UTC+9.
+    # 00:00 KST = 15:00 UTC (previous day).
+    # But usually we run cron at '0 * * * *'.
+    # If current hour (UTC) is 15, then it is 00:00 KST.
+    
+    utc_now = datetime.now(pytz.utc)
+    if utc_now.hour == 15: 
+        print("🌙 자정(KST 00시) 감지 -> 일일 조회수 초기화 실행")
+        reset_daily_views()
+    
+    # 2. 크롤링 실행 (최근 글 위주)
     crawl_gnu_cse(mode='recent', headless=True)
