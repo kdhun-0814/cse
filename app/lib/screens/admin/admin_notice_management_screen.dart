@@ -4,6 +4,7 @@ import '../../models/notice.dart';
 import '../../services/firestore_service.dart';
 import '../../utils/toast_utils.dart';
 import '../../widgets/common/custom_dialog.dart';
+import '../../widgets/common/custom_loading_indicator.dart';
 
 class AdminNoticeManagementScreen extends StatefulWidget {
   const AdminNoticeManagementScreen({super.key});
@@ -204,7 +205,7 @@ class _AdminNoticeManagementScreenState
               stream: _firestoreService.getAdminNotices(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: CustomLoadingIndicator());
                 }
                 if (snapshot.hasError) {
                   return Center(child: Text("Error: ${snapshot.error}"));

@@ -3,7 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // NEW
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
-import 'firebase_options.dart'; // 자동 생성된 파일
+import 'firebase_options.dart'; // 자동 생성된 파일.
 import 'package:intl/date_symbol_data_local.dart';
 import 'auth_gate.dart'; // 생성할 파일
 import 'package:firebase_messaging/firebase_messaging.dart';

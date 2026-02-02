@@ -4,6 +4,7 @@ import '../../models/notice.dart';
 import 'notice_detail_screen.dart';
 import '../widgets/common/bounceable.dart';
 import '../widgets/common/custom_dialog.dart';
+import '../widgets/common/custom_loading_indicator.dart';
 import '../utils/toast_utils.dart';
 
 class NotificationScreen extends StatefulWidget {
@@ -104,7 +105,7 @@ class _NotificationScreenState extends State<NotificationScreen> {
               stream: _firestoreService.getGlobalRecentNotices(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: CustomLoadingIndicator());
                 }
                 if (!snapshot.hasData || snapshot.data!.isEmpty) {
                   return const Center(
