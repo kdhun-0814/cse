@@ -17,6 +17,11 @@ jobs:
         with:
           python-version: '3.9'
 
+      - name: Debug file structure
+        run: |
+          pwd
+          ls -R
+      
       - name: Install dependencies
         run: |
           pip install -r ai_server/requirements.txt
