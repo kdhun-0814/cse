@@ -1043,23 +1043,29 @@ class FirestoreService {
 
   // ★ 회원 탈퇴 (Account Deletion)
   Future<void> deleteUser() async {
-    User? user = _auth.currentUser;
+    final user = _auth.currentUser;
     if (user == null) return;
 
-    try {
-      String uid = user.uid;
+    final uid = user.uid;
 
-      // 1. Firestore 유저 데이터 삭제
+    try {
+      // 1. Firestore에서 사용자 관련 데이터 삭제
+      // (Batch를 사용해도 되지만, Auth 삭제 전 확실히 처리하기 위해 await)
       await _db.collection('users').doc(uid).delete();
 
-      // 2. (선택) 사용자가 작성한 게시글/댓글이 있다면 삭제하거나 '알수없음' 처리
-      // 현재는 공지사항 조회 위주이므로 스크랩 데이터 등은 유저 문서 삭제로 충분
-
-      // 3. Firebase Auth 계정 삭제
-      // 주: 재인증(Re-authenticate)이 필요할 수 있음 (UI에서 처리 권장)
+      // 2. Firebase Auth에서 사용자 계정 삭제
       await user.delete();
+
+      print('User account and Firestore data deleted successfully.');
+    } on FirebaseAuthException catch (e) {
+      // 계정 삭제 실패 시 (예: 최근 재로그인 필요)
+      if (e.code == 'requires-recent-login') {
+        throw '보안을 위해 로그아웃 후 다시 로그인해서 진행해주세요.';
+      }
+      throw '탈퇴 처리 중 오류가 발생했습니다: ${e.message}';
     } catch (e) {
-      throw Exception("회원 탈퇴 중 오류가 발생했습니다: $e");
+      print('Error deleting user data from Firestore: $e');
+      throw '데이터 삭제 중 오류가 발생했습니다: $e';
     }
   }
 }

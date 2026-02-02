@@ -217,7 +217,11 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                 }
 
                 if (newPw.length < 8) {
-                  ToastUtils.show(context, "새 비밀번호는 8자리 이상이어야 합니다.", isError: true);
+                  ToastUtils.show(
+                    context,
+                    "새 비밀번호는 8자리 이상이어야 합니다.",
+                    isError: true,
+                  );
                   return;
                 }
 
@@ -227,7 +231,11 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                 }
 
                 if (currentPw == newPw) {
-                  ToastUtils.show(context, "현재 비밀번호와 다른 비밀번호를 입력해주세요.", isError: true);
+                  ToastUtils.show(
+                    context,
+                    "현재 비밀번호와 다른 비밀번호를 입력해주세요.",
+                    isError: true,
+                  );
                   return;
                 }
 
@@ -737,29 +745,16 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                               context,
                             ).pushNamedAndRemoveUntil('/', (route) => false);
                           }
-                        } on FirebaseAuthException catch (e) {
-                          if (mounted) {
-                            setState(() => _isLoading = false);
-                            if (e.code == 'requires-recent-login') {
-                              ToastUtils.show(
-                                context,
-                                "보안을 위해 다시 로그인한 후 시도해주세요.",
-                                isError: true,
-                              );
-                            } else {
-                              ToastUtils.show(
-                                context,
-                                "탈퇴 실패: ${e.message}",
-                                isError: true,
-                              );
-                            }
-                          }
                         } catch (e) {
                           if (mounted) {
                             setState(() => _isLoading = false);
+                            // 서비스에서 던진 에러 메시지 그대로 표시 ('보안을 위해...' 등)
                             ToastUtils.show(
                               context,
-                              "오류가 발생했습니다: $e",
+                              e.toString().replaceAll(
+                                "Exception: ",
+                                "",
+                              ), // 혹시 모를 접두어 제거
                               isError: true,
                             );
                           }
