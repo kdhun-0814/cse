@@ -466,7 +466,7 @@ class FirestoreService {
         .collection('notices')
         .where('category', isEqualTo: category)
         .orderBy('crawled_at', descending: true)
-        .limit(100)
+        .limit(20) // 성능 최적화: 최근 20개만 검사
         .snapshots();
 
     final userStream = _db.collection('users').doc(uid).snapshots();
@@ -496,7 +496,7 @@ class FirestoreService {
     final noticeStream = _db
         .collection('notices')
         .orderBy('crawled_at', descending: true)
-        .limit(100)
+        .limit(50) // 성능 최적화: 최근 50개만 검사
         .snapshots();
 
     final userStream = _db.collection('users').doc(uid).snapshots();

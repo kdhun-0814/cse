@@ -28,7 +28,7 @@ class _SignupScreenState extends State<SignupScreen> {
 
   bool _isLoading = false;
   bool _isObscure = true; // 비밀번호 숨김 여부
-  
+
   // 이메일 도메인 선택
   final List<String> _domainList = [
     'naver.com',
@@ -107,7 +107,9 @@ class _SignupScreenState extends State<SignupScreen> {
       }
 
       // 학번 중복 확인
-      if (await FirestoreService().isStudentIdTaken(_studentIdCtrl.text.trim())) {
+      if (await FirestoreService().isStudentIdTaken(
+        _studentIdCtrl.text.trim(),
+      )) {
         if (mounted) {
           ToastUtils.show(context, "이미 가입된 학번입니다.", isError: true);
           setState(() => _isLoading = false);
@@ -117,8 +119,8 @@ class _SignupScreenState extends State<SignupScreen> {
 
       // 이메일 조합
       String emailId = _emailIdCtrl.text.trim();
-      String emailDomain = _isDirectDomain 
-          ? _emailDomainCtrl.text.trim() 
+      String emailDomain = _isDirectDomain
+          ? _emailDomainCtrl.text.trim()
           : _selectedDomain;
       String email = "$emailId@$emailDomain";
 
@@ -152,7 +154,9 @@ class _SignupScreenState extends State<SignupScreen> {
             'created_at': FieldValue.serverTimestamp(),
             'approved_at': null,
             'expires_at': null,
-            'push_settings': {}, // 초기값
+            'isPushEnabled': true, // Push 알림 기본 활성화
+            'notification_settings':
+                {}, // 초기값 (key 변경: push_settings -> notification_settings)
             'home_widget_config': [], // 초기값
           });
 
@@ -293,7 +297,10 @@ class _SignupScreenState extends State<SignupScreen> {
                           borderRadius: BorderRadius.all(Radius.circular(12)),
                           borderSide: BorderSide(color: Color(0xFF3182F6)),
                         ),
-                        contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 14,
+                        ),
                       ),
                     ),
                   ),
@@ -317,21 +324,40 @@ class _SignupScreenState extends State<SignupScreen> {
                             keyboardType: TextInputType.emailAddress,
                             decoration: InputDecoration(
                               hintText: "직접 입력",
-                              hintStyle: const TextStyle(color: Color(0xFFC5C8CE)),
+                              hintStyle: const TextStyle(
+                                color: Color(0xFFC5C8CE),
+                              ),
                               border: const OutlineInputBorder(
-                                borderRadius: BorderRadius.all(Radius.circular(12)),
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(12),
+                                ),
                               ),
                               enabledBorder: const OutlineInputBorder(
-                                borderRadius: BorderRadius.all(Radius.circular(12)),
-                                borderSide: BorderSide(color: Color(0xFFE5E8EB)),
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(12),
+                                ),
+                                borderSide: BorderSide(
+                                  color: Color(0xFFE5E8EB),
+                                ),
                               ),
                               focusedBorder: const OutlineInputBorder(
-                                borderRadius: BorderRadius.all(Radius.circular(12)),
-                                borderSide: BorderSide(color: Color(0xFF3182F6)),
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(12),
+                                ),
+                                borderSide: BorderSide(
+                                  color: Color(0xFF3182F6),
+                                ),
                               ),
-                              contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 14,
+                              ),
                               suffixIcon: IconButton(
-                                icon: const Icon(Icons.close_rounded, color: Color(0xFFB0B8C1), size: 18),
+                                icon: const Icon(
+                                  Icons.close_rounded,
+                                  color: Color(0xFFB0B8C1),
+                                  size: 18,
+                                ),
                                 onPressed: () {
                                   setState(() {
                                     _selectedDomain = _domainList[0]; // 목록으로 복귀
@@ -343,18 +369,26 @@ class _SignupScreenState extends State<SignupScreen> {
                         : Container(
                             padding: const EdgeInsets.symmetric(horizontal: 12),
                             decoration: BoxDecoration(
-                              border: Border.all(color: const Color(0xFFE5E8EB)),
+                              border: Border.all(
+                                color: const Color(0xFFE5E8EB),
+                              ),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: Theme(
                               data: Theme.of(context).copyWith(
                                 scrollbarTheme: ScrollbarThemeData(
-                                  thumbColor: WidgetStateProperty.all(const Color(0xFFE5E8EB)),
-                                  trackColor: WidgetStateProperty.all(Colors.transparent),
+                                  thumbColor: WidgetStateProperty.all(
+                                    const Color(0xFFE5E8EB),
+                                  ),
+                                  trackColor: WidgetStateProperty.all(
+                                    Colors.transparent,
+                                  ),
                                   // trackBorderColor: WidgetStateProperty.all(Colors.transparent),
                                   radius: const Radius.circular(4),
                                   thickness: WidgetStateProperty.all(6.0),
-                                  thumbVisibility: WidgetStateProperty.all(true), // 항상 표시 (데스크탑/웹 고려)
+                                  thumbVisibility: WidgetStateProperty.all(
+                                    true,
+                                  ), // 항상 표시 (데스크탑/웹 고려)
                                 ),
                               ),
                               child: DropdownButtonHideUnderline(
@@ -362,9 +396,13 @@ class _SignupScreenState extends State<SignupScreen> {
                                   value: _selectedDomain,
                                   isExpanded: true,
                                   dropdownColor: Colors.white, // 배경 흰색 명시
-                                  borderRadius: BorderRadius.circular(12), // 메뉴 둥근 모서리
-                                  icon: const Icon(Icons.keyboard_arrow_down_rounded,
-                                      color: Color(0xFF8B95A1)),
+                                  borderRadius: BorderRadius.circular(
+                                    12,
+                                  ), // 메뉴 둥근 모서리
+                                  icon: const Icon(
+                                    Icons.keyboard_arrow_down_rounded,
+                                    color: Color(0xFF8B95A1),
+                                  ),
                                   style: const TextStyle(
                                     fontSize: 14,
                                     color: Color(0xFF333D4B),
@@ -395,10 +433,7 @@ class _SignupScreenState extends State<SignupScreen> {
               const SizedBox(height: 6),
               const Text(
                 "비밀번호 분실 시 재설정 링크가 전송되니 실제 사용 중인 이메일을 입력해주세요.",
-                style: TextStyle(
-                  fontSize: 12,
-                  color: Color(0xFF8B95A1),
-                ),
+                style: TextStyle(fontSize: 12, color: Color(0xFF8B95A1)),
               ),
               const SizedBox(height: 24),
 

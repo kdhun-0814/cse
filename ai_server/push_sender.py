@@ -54,7 +54,7 @@ def send_push_for_notice(notice_id):
             user_data = user.to_dict()
             
             # 카테고리별 설정 확인
-            push_settings = user_data.get('push_settings', {})
+            push_settings = user_data.get('notification_settings', {})
             category_enabled = push_settings.get(category, True)  # 기본값 True
             
             if category_enabled:
