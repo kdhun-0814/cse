@@ -12,6 +12,54 @@ class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  // 학번으로 유저 데이터 찾기 (로그인 최적화용)
+  Future<Map<String, dynamic>?> getUserDataByStudentId(String studentId) async {
+    try {
+      final querySnapshot = await _db
+          .collection('users')
+          .where('student_id', isEqualTo: studentId)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        return querySnapshot.docs.first.data();
+      }
+      return null;
+    } catch (e) {
+      print("Error finding user data by student ID: $e");
+      return null;
+    }
+  }
+
+  // 학번으로 이메일 찾기 (구형 - 유지)
+  Future<String?> getEmailByStudentId(String studentId) async {
+    try {
+      final querySnapshot = await _db
+          .collection('users')
+          .where('student_id', isEqualTo: studentId)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        return querySnapshot.docs.first.data()['email'] as String?;
+      }
+      return null;
+    } catch (e) {
+      print("Error finding email by student ID: $e");
+      return null;
+    }
+  }
+
+  // 학번 중복 확인
+  Future<bool> isStudentIdTaken(String studentId) async {
+    final query = await _db
+        .collection('users')
+        .where('student_id', isEqualTo: studentId)
+        .limit(1)
+        .get();
+    return query.docs.isNotEmpty;
+  }
+
   // ★ 1. 현재 유저의 권한(role) 가져오기
   Future<String> getUserRole() async {
     String uid = _auth.currentUser!.uid;

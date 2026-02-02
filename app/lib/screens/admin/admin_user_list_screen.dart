@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import '../../services/firestore_service.dart';
 import '../../utils/toast_utils.dart';
 import '../../widgets/common/custom_dialog.dart';
+import '../../widgets/common/custom_dialog.dart';
 import '../../widgets/common/bounceable.dart';
+import '../../widgets/common/custom_loading_indicator.dart';
 
 class AdminUserListScreen extends StatefulWidget {
   const AdminUserListScreen({super.key});
@@ -31,7 +33,7 @@ class _AdminUserListScreenState extends State<AdminUserListScreen> {
         stream: _firestoreService.getPendingUsers(),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Center(child: CircularProgressIndicator());
+            return const Center(child: CustomLoadingIndicator());
           }
 
           if (!snapshot.hasData || snapshot.data!.isEmpty) {

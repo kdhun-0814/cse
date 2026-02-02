@@ -9,7 +9,9 @@ import 'widgets/common/bounceable.dart';
 import 'screens/approval_waiting_screen.dart';
 
 class AuthGate extends StatefulWidget {
-  const AuthGate({super.key});
+  final Map<String, dynamic>? initialUserData; // 로그인 직후 넘겨받은 데이터 (최적화용)
+
+  const AuthGate({super.key, this.initialUserData});
 
   @override
   State<AuthGate> createState() => _AuthGateState();
@@ -41,6 +43,12 @@ class _AuthGateState extends State<AuthGate> {
           builder: (context, userSnapshot) {
             // 2. 로딩 상태 확인 로그
             if (userSnapshot.connectionState == ConnectionState.waiting) {
+              // ★ 최적화: 초기 데이터가 있으면 로딩 없이 즉시 렌더링
+              if (widget.initialUserData != null) {
+                print("⚡ AuthGate: 초기 데이터 사용하여 즉시 렌더링");
+                return _buildContent(widget.initialUserData!);
+              }
+
               print("⏳ AuthGate: DB 데이터 가져오는 중...");
               return const Scaffold(
                 backgroundColor: Colors.white,
@@ -82,34 +90,38 @@ class _AuthGateState extends State<AuthGate> {
             }
 
             final userData = userSnapshot.data!.data() as Map<String, dynamic>;
-            final String status = userData['status'] ?? 'pending';
-            print("✅ AuthGate: 유저 정보 확인됨 (상태: $status)");
-
-            // 4. 승인 여부 분기
-            if (status == 'approved') {
-              print("🚀 AuthGate: 승인 완료 -> 메인 화면 이동");
-
-              // FCM 초기화 (한 번만)
-              if (!_fcmInitialized) {
-                _fcmInitialized = true;
-                FCMService()
-                    .initialize()
-                    .then((_) {
-                      print("✅ FCM 초기화 완료");
-                    })
-                    .catchError((e) {
-                      print("❌ FCM 초기화 실패: $e");
-                    });
-              }
-
-              return const MainNavScreen();
-            }
-
-            print("⛔ AuthGate: 승인 대기 중 -> 차단 화면 표시");
-            return const ApprovalWaitingScreen();
+            return _buildContent(userData);
           },
         );
       },
     );
+  }
+
+  Widget _buildContent(Map<String, dynamic> userData) {
+    final String status = userData['status'] ?? 'pending';
+    print("✅ AuthGate: 유저 정보 확인됨 (상태: $status)");
+
+    // 4. 승인 여부 분기
+    if (status == 'approved') {
+      print("🚀 AuthGate: 승인 완료 -> 메인 화면 이동");
+
+      // FCM 초기화 (한 번만)
+      if (!_fcmInitialized) {
+        _fcmInitialized = true;
+        FCMService()
+            .initialize()
+            .then((_) {
+              print("✅ FCM 초기화 완료");
+            })
+            .catchError((e) {
+              print("❌ FCM 초기화 실패: $e");
+            });
+      }
+
+      return const MainNavScreen();
+    }
+
+    print("⛔ AuthGate: 승인 대기 중 -> 차단 화면 표시");
+    return const ApprovalWaitingScreen();
   }
 }
