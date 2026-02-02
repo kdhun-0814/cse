@@ -482,7 +482,7 @@ class _HomeScreenState extends State<HomeScreen>
               if (snapshot.hasData && snapshot.data != null) {
                 userData = snapshot.data!.data() as Map<String, dynamic>?;
                 if (userData != null) {
-                  name = "${userData['last_name']}${userData['first_name']} 학우님";
+                  name = "${userData['last_name']}${userData['first_name']} 님";
                   studentId = "${userData['student_id']}";
                 }
               }

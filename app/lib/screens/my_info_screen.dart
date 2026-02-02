@@ -294,7 +294,7 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
 
                   // 성명 + 학우님
                   Text(
-                    "$name 학우님",
+                    "$name 님",
                     style: const TextStyle(
                       fontSize: 24,
                       fontWeight: FontWeight.bold,

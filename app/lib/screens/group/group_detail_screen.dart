@@ -9,6 +9,7 @@ import '../../widgets/common/custom_loading_indicator.dart'; // 로딩 인디케
 import '../../widgets/common/custom_dialog.dart';
 import '../../widgets/common/bounceable.dart'; // Toss-style Interaction
 import 'group_edit_screen.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class GroupDetailScreen extends StatefulWidget {
   final Group group;
@@ -104,38 +105,18 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
   }
 
   // 3. 외부 링크 열기 (Group 객체를 받아 최신 링크 사용)
-  void _openExternalLink(Group group) {
+  Future<void> _openExternalLink(Group group) async {
     if (group.linkUrl == null || group.linkUrl!.isEmpty) {
       ToastUtils.show(context, "신청 링크가 등록되지 않은 모임입니다.", isError: true);
       return;
     }
-    showDialog(
-      context: context,
-      builder: (ctx) => CustomDialog(
-        title: "외부 폼 신청",
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            const Text("아래 링크로 이동하여 신청서를 작성해주세요."),
-            const SizedBox(height: 10),
-            Container(
-              padding: const EdgeInsets.all(10),
-              decoration: BoxDecoration(
-                color: Colors.grey[100],
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: SelectableText(
-                group.linkUrl!,
-                style: const TextStyle(color: Colors.blue),
-              ),
-            ),
-          ],
-        ),
-        confirmText: "확인",
-        onConfirm: () => Navigator.pop(ctx),
-      ),
-    );
+    
+    final url = Uri.parse(group.linkUrl!);
+    if (await canLaunchUrl(url)) {
+      await launchUrl(url, mode: LaunchMode.externalApplication);
+    } else {
+      ToastUtils.show(context, "링크를 열 수 없어요.", isError: true);
+    }
   }
 
   // 4. QnA 등록/수정
@@ -393,20 +374,24 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.spaceAround,
                       children: [
-                        _infoItem(
-                          "모집 인원",
-                          group.maxMembers == -1
-                              ? "제한 없음"
-                              : "${group.maxMembers}명 모집",
+                        Expanded(
+                          child: _infoItem(
+                            "모집 인원",
+                            group.maxMembers == -1
+                                ? "제한 없음"
+                                : "${group.maxMembers}명 모집",
+                          ),
                         ),
                         Container(
                           width: 1,
                           height: 30,
                           color: Colors.grey[300],
                         ),
-                        _infoItem(
-                          "마감일",
-                          DateFormat('MM.dd').format(group.deadline),
+                        Expanded(
+                          child: _infoItem(
+                            "마감일",
+                            DateFormat('MM.dd').format(group.deadline),
+                          ),
                         ),
                       ],
                     ),
@@ -423,40 +408,60 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
                       ),
                     ),
                     const SizedBox(height: 8),
-                    Bounceable(
-                      onTap: () => _openExternalLink(group),
-                      borderRadius: BorderRadius.circular(12),
-                      child: Container(
-                        width: double.infinity,
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          color: const Color(0xFFF2F4F6),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: const Color(0xFFE5E8EB)),
-                        ),
-                        child: Row(
-                          children: [
-                            const Icon(
-                              Icons.link,
-                              size: 20,
-                              color: Color(0xFF3182F6),
+                    group.isExpired
+                        ? Container(
+                            width: double.infinity,
+                            padding: const EdgeInsets.symmetric(vertical: 16),
+                            decoration: BoxDecoration(
+                              color: const Color(0xFFF2F4F6),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: const Color(0xFFE5E8EB)),
                             ),
-                            const SizedBox(width: 8),
-                            Expanded(
-                              child: Text(
-                                group.linkUrl!,
-                                style: const TextStyle(
-                                  color: Color(0xFF3182F6),
-                                  fontWeight: FontWeight.w500,
-                                ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
+                            alignment: Alignment.center,
+                            child: const Text(
+                              "이미 마감된 모집이에요.",
+                              style: TextStyle(
+                                color: Colors.grey,
+                                fontWeight: FontWeight.bold,
+                                fontSize: 15,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
+                          )
+                        : Bounceable(
+                            onTap: () => _openExternalLink(group),
+                            borderRadius: BorderRadius.circular(12),
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFF2F4F6),
+                                borderRadius: BorderRadius.circular(12),
+                                border:
+                                    Border.all(color: const Color(0xFFE5E8EB)),
+                              ),
+                              child: Row(
+                                children: [
+                                  const Icon(
+                                    Icons.link,
+                                    size: 20,
+                                    color: Color(0xFF3182F6),
+                                  ),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      group.linkUrl!,
+                                      style: const TextStyle(
+                                        color: Color(0xFF3182F6),
+                                        fontWeight: FontWeight.w500,
+                                      ),
+                                      maxLines: 1,
+                                      overflow: TextOverflow.ellipsis,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                          ),
                     const SizedBox(height: 24),
                   ],
 
@@ -559,99 +564,104 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
             child: SafeArea(
               child: Padding(
                 padding: const EdgeInsets.only(bottom: 12),
-                child: group.isMyGroup
-                    ? Row(
-                        children: [
-                          Expanded(
-                            child: Bounceable(
-                              onTap: _deleteGroup,
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
+                child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    group.isMyGroup
+                        ? Row(
+                            children: [
+                              Expanded(
+                                child: Bounceable(
+                                  onTap: _deleteGroup,
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: const Color(0xFFE5E8EB),
-                                  ),
-                                ),
-                                alignment: Alignment.center,
-                                child: const Text(
-                                  "모집 삭제하기",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: Colors.red,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: const Color(0xFFE5E8EB),
+                                      ),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: const Text(
+                                      "모집 삭제하기",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: Colors.red,
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                          const SizedBox(width: 12),
-                          Expanded(
-                            child: Bounceable(
-                              onTap: () {
-                                if (group.isManuallyClosed) {
-                                  _reopenGroup();
-                                } else {
-                                  _closeGroup();
-                                }
-                              },
-                              borderRadius: BorderRadius.circular(12),
-                              child: Container(
-                                padding: const EdgeInsets.symmetric(
-                                  vertical: 16,
-                                ),
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Bounceable(
+                                  onTap: () {
+                                    if (group.isManuallyClosed) {
+                                      _reopenGroup();
+                                    } else {
+                                      _closeGroup();
+                                    }
+                                  },
                                   borderRadius: BorderRadius.circular(12),
-                                  border: Border.all(
-                                    color: const Color(0xFFE5E8EB),
-                                  ),
-                                ),
-                                alignment: Alignment.center,
-                                child: Text(
-                                  group.isManuallyClosed ? "마감 취소" : "마감하기",
-                                  style: TextStyle(
-                                    fontWeight: FontWeight.bold,
-                                    color: group.isManuallyClosed
-                                        ? const Color(0xFF3182F6) // 마감 취소는 파란색
-                                        : const Color(0xFF191F28),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(
+                                      vertical: 16,
+                                    ),
+                                    decoration: BoxDecoration(
+                                      color: Colors.white,
+                                      borderRadius: BorderRadius.circular(12),
+                                      border: Border.all(
+                                        color: const Color(0xFFE5E8EB),
+                                      ),
+                                    ),
+                                    alignment: Alignment.center,
+                                    child: Text(
+                                      group.isManuallyClosed ? "마감 취소" : "마감하기",
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.bold,
+                                        color: group.isManuallyClosed
+                                            ? const Color(0xFF3182F6) // 마감 취소는 파란색
+                                            : const Color(0xFF191F28),
+                                      ),
+                                    ),
                                   ),
                                 ),
                               ),
-                            ),
-                          ),
-                        ],
-                      )
-                    : Bounceable(
-                        onTap: group.isExpired
-                            ? null
-                            : () => _openExternalLink(group),
-                        borderRadius: BorderRadius.circular(12),
-                        child: Container(
-                          width: double.infinity,
-                          padding: const EdgeInsets.symmetric(vertical: 16),
-                          decoration: BoxDecoration(
-                            color: const Color(0xFF3182F6),
+                            ],
+                          )
+                        : Bounceable(
+                            onTap: group.isExpired
+                                ? null
+                                : () => _openExternalLink(group),
                             borderRadius: BorderRadius.circular(12),
-                          ),
-                          alignment: Alignment.center,
-                          child: Text(
-                            group.isExpired
-                                ? "이미 마감된 모집이에요."
-                                : (group.linkUrl == null
-                                      ? "신청 링크가 없어요."
-                                      : "신청하러 가기 (외부 폼)"),
-                            style: const TextStyle(
-                              fontSize: 15,
-                              fontWeight: FontWeight.bold,
-                              color: Colors.white,
+                            child: Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFF3182F6),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              alignment: Alignment.center,
+                              child: Text(
+                                group.isExpired
+                                    ? "이미 마감된 모집이에요."
+                                    : (group.linkUrl == null
+                                          ? "신청 링크가 없어요."
+                                          : "신청하러 가기 (외부 폼)"),
+                                style: const TextStyle(
+                                  fontSize: 15,
+                                  fontWeight: FontWeight.bold,
+                                  color: Colors.white,
+                                ),
+                              ),
                             ),
                           ),
-                        ),
-                      ),
+                  ],
+                ),
               ),
             ),
           ),
@@ -736,70 +746,74 @@ class _GroupDetailScreenState extends State<GroupDetailScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
-                  crossAxisAlignment:
-                      CrossAxisAlignment.center, // 이름과 날짜는 중앙 정렬
+                  crossAxisAlignment: CrossAxisAlignment.center,
                   children: [
-                    Row(
-                      children: [
-                        Text(
-                          item.isAnonymous
-                              ? "익명${item.anonymousId ?? ''}"
-                              : item.userName,
-                          style: TextStyle(
-                            fontWeight: FontWeight.bold,
-                            fontSize: 15,
-                            color: item.userId == widget.group.authorId
-                                ? const Color(0xFF3182F6)
-                                : (item.isAnonymous
-                                      ? Colors.black87
-                                      : Colors.black),
-                          ),
-                        ),
-                        if (item.userId == widget.group.authorId)
-                          Container(
-                            margin: const EdgeInsets.only(left: 4),
-                            padding: const EdgeInsets.symmetric(
-                              horizontal: 4,
-                              vertical: 2,
-                            ),
-                            decoration: BoxDecoration(
-                              color: const Color(0xFFE8F3FF),
-                              borderRadius: BorderRadius.circular(4),
-                            ),
-                            child: const Text(
-                              "작성자",
+                    Expanded(
+                      child: Row(
+                        children: [
+                          Flexible(
+                            child: Text(
+                              item.isAnonymous
+                                  ? "익명${item.anonymousId ?? ''}"
+                                  : item.userName,
                               style: TextStyle(
-                                fontSize: 10,
                                 fontWeight: FontWeight.bold,
-                                color: Color(0xFF3182F6),
+                                fontSize: 15,
+                                color: item.userId == widget.group.authorId
+                                    ? const Color(0xFF3182F6)
+                                    : (item.isAnonymous
+                                        ? Colors.black87
+                                        : Colors.black),
+                              ),
+                              overflow: TextOverflow.ellipsis,
+                            ),
+                          ),
+                          if (item.userId == widget.group.authorId)
+                            Container(
+                              margin: const EdgeInsets.only(left: 4),
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 4,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: const Color(0xFFE8F3FF),
+                                borderRadius: BorderRadius.circular(4),
+                              ),
+                              child: const Text(
+                                "작성자",
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.bold,
+                                  color: Color(0xFF3182F6),
+                                ),
                               ),
                             ),
+                          const SizedBox(width: 8),
+                          Text(
+                            DateFormat('MM.dd HH:mm').format(item.createdAt),
+                            style: TextStyle(color: Colors.grey[500], fontSize: 13),
                           ),
-                      ],
-                    ),
-                    const SizedBox(width: 8),
-                    Text(
-                      DateFormat('MM.dd HH:mm').format(item.createdAt),
-                      style: TextStyle(color: Colors.grey[500], fontSize: 13),
-                    ),
-                    if (item.isEdited && !item.isDeleted)
-                      Text(
-                        " (수정됨)",
-                        style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                          if (item.isEdited && !item.isDeleted)
+                            Text(
+                              " (수정됨)",
+                              style: TextStyle(color: Colors.grey[400], fontSize: 13),
+                            ),
+                        ],
                       ),
-                    const Spacer(),
-
-                    // ★ 5번 수정: 점 3개 메뉴 -> BottomSheet 스타일 통일
+                    ),
                     if (isMe && !item.isDeleted)
-                      Bounceable(
-                        onTap: () {
-                          _showQnAMenu(item);
-                        },
-                        borderRadius: BorderRadius.circular(12),
-                        child: const Icon(
-                          Icons.more_horiz,
-                          size: 18,
-                          color: Colors.grey,
+                      Padding(
+                        padding: const EdgeInsets.only(left: 8),
+                        child: Bounceable(
+                          onTap: () {
+                            _showQnAMenu(item);
+                          },
+                          borderRadius: BorderRadius.circular(12),
+                          child: const Icon(
+                            Icons.more_horiz,
+                            size: 18,
+                            color: Colors.grey,
+                          ),
                         ),
                       ),
                   ],

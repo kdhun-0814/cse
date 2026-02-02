@@ -814,8 +814,12 @@ class FirestoreService {
       DocumentSnapshot userDoc = await transaction.get(
         _db.collection('users').doc(uid),
       );
-      String userName =
-          (userDoc.data() as Map<String, dynamic>)['name'] ?? '익명';
+      String lastName =
+          (userDoc.data() as Map<String, dynamic>)['last_name'] ?? '';
+      String firstName =
+          (userDoc.data() as Map<String, dynamic>)['first_name'] ?? '';
+      String userName = '$lastName$firstName';
+      if (userName.isEmpty) userName = '익명';
 
       // 새 항목 생성
       QnAItem newItem = QnAItem(
