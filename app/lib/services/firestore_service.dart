@@ -205,9 +205,15 @@ class FirestoreService {
     }
 
     // 정렬 & Limit
-    query = query.orderBy('crawled_at', descending: true).limit(limit);
+    if (isUrgentOnly || isImportantOnly) {
+      // 복합 인덱스 없이 쿼리하기 위해 orderBy 제거 (Client-side 정렬 대체)
+      // 중요/긴급 공지는 수가 적으므로 100개면 충분
+      query = query.limit(100);
+    } else {
+      query = query.orderBy('crawled_at', descending: true).limit(limit);
+    }
 
-    if (startAfter != null) {
+    if (startAfter != null && !isUrgentOnly && !isImportantOnly) {
       query = query.startAfterDocument(startAfter);
     }
 
@@ -220,10 +226,17 @@ class FirestoreService {
     final scraps = List<String>.from(userData?['scraps'] ?? []);
     final readNotices = List<String>.from(userData?['readNotices'] ?? []);
 
-    return noticeSnapshot.docs
+    List<Notice> notices = noticeSnapshot.docs
         .map((doc) => Notice.fromFirestore(doc, scraps, readNotices))
         .where((n) => !n.isDeleted)
         .toList();
+
+    // Client-side Sort (중요/긴급 공지의 경우 서버 정렬을 건너뛰었으므로)
+    if (isUrgentOnly || isImportantOnly) {
+      notices.sort((a, b) => b.date.compareTo(a.date));
+    }
+
+    return notices;
   }
 
   // ★ 알림 설정 토글 (Firestore에 저장)
