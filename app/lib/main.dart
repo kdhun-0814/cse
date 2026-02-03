@@ -19,9 +19,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting();
 
-  // ★ Firebase 초기화 (중복 방지)
   // ★ Firebase 초기화 (중복 방지 및 에러 핸들링)
   try {
     if (Firebase.apps.isEmpty) {
@@ -30,13 +28,14 @@ void main() async {
       );
     }
   } catch (e) {
-    // 이미 초기화되었다면 무시
     if (e.toString().contains('duplicate-app')) {
       debugPrint("Firebase already initialized: $e");
     } else {
       rethrow;
     }
   }
+
+  await initializeDateFormatting(); // DateFormat 초기화는 Firebase 이후로 이동
 
   // ★ Firestore 로컬 캐시 설정 (비용 절감 핵심)
   FirebaseFirestore.instance.settings = const Settings(

@@ -183,8 +183,10 @@ class _HomeScreenState extends State<HomeScreen>
   }
 
   void _removeOverlay() {
-    _overlayEntry?.remove();
-    _overlayEntry = null;
+    if (_overlayEntry != null && _overlayEntry!.mounted) {
+      _overlayEntry!.remove();
+      _overlayEntry = null;
+    }
   }
 
   void _loadWidgetConfig() {
@@ -510,10 +512,14 @@ class _HomeScreenState extends State<HomeScreen>
                       child: CircleAvatar(
                         radius: 32,
                         backgroundColor: const Color(0xFFF2F4F6),
-                        backgroundImage: userData != null && userData['profile_image_url'] != null
+                        backgroundImage:
+                            userData != null &&
+                                userData['profile_image_url'] != null
                             ? NetworkImage(userData['profile_image_url'])
                             : null,
-                        child: userData == null || userData['profile_image_url'] == null
+                        child:
+                            userData == null ||
+                                userData['profile_image_url'] == null
                             ? const Icon(
                                 Icons.person,
                                 size: 32,
