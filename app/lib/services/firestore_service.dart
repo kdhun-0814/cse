@@ -12,6 +12,54 @@ class FirestoreService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
 
+  // 학번으로 유저 데이터 찾기 (로그인 최적화용)
+  Future<Map<String, dynamic>?> getUserDataByStudentId(String studentId) async {
+    try {
+      final querySnapshot = await _db
+          .collection('users')
+          .where('student_id', isEqualTo: studentId)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        return querySnapshot.docs.first.data();
+      }
+      return null;
+    } catch (e) {
+      print("Error finding user data by student ID: $e");
+      return null;
+    }
+  }
+
+  // 학번으로 이메일 찾기 (구형 - 유지)
+  Future<String?> getEmailByStudentId(String studentId) async {
+    try {
+      final querySnapshot = await _db
+          .collection('users')
+          .where('student_id', isEqualTo: studentId)
+          .limit(1)
+          .get();
+
+      if (querySnapshot.docs.isNotEmpty) {
+        return querySnapshot.docs.first.data()['email'] as String?;
+      }
+      return null;
+    } catch (e) {
+      print("Error finding email by student ID: $e");
+      return null;
+    }
+  }
+
+  // 학번 중복 확인
+  Future<bool> isStudentIdTaken(String studentId) async {
+    final query = await _db
+        .collection('users')
+        .where('student_id', isEqualTo: studentId)
+        .limit(1)
+        .get();
+    return query.docs.isNotEmpty;
+  }
+
   // ★ 1. 현재 유저의 권한(role) 가져오기
   Future<String> getUserRole() async {
     String uid = _auth.currentUser!.uid;
@@ -157,9 +205,15 @@ class FirestoreService {
     }
 
     // 정렬 & Limit
-    query = query.orderBy('crawled_at', descending: true).limit(limit);
+    if (isUrgentOnly || isImportantOnly) {
+      // 복합 인덱스 없이 쿼리하기 위해 orderBy 제거 (Client-side 정렬 대체)
+      // 중요/긴급 공지는 수가 적으므로 100개면 충분
+      query = query.limit(100);
+    } else {
+      query = query.orderBy('crawled_at', descending: true).limit(limit);
+    }
 
-    if (startAfter != null) {
+    if (startAfter != null && !isUrgentOnly && !isImportantOnly) {
       query = query.startAfterDocument(startAfter);
     }
 
@@ -172,10 +226,17 @@ class FirestoreService {
     final scraps = List<String>.from(userData?['scraps'] ?? []);
     final readNotices = List<String>.from(userData?['readNotices'] ?? []);
 
-    return noticeSnapshot.docs
+    List<Notice> notices = noticeSnapshot.docs
         .map((doc) => Notice.fromFirestore(doc, scraps, readNotices))
         .where((n) => !n.isDeleted)
         .toList();
+
+    // Client-side Sort (중요/긴급 공지의 경우 서버 정렬을 건너뛰었으므로)
+    if (isUrgentOnly || isImportantOnly) {
+      notices.sort((a, b) => b.date.compareTo(a.date));
+    }
+
+    return notices;
   }
 
   // ★ 알림 설정 토글 (Firestore에 저장)
@@ -418,7 +479,7 @@ class FirestoreService {
         .collection('notices')
         .where('category', isEqualTo: category)
         .orderBy('crawled_at', descending: true)
-        .limit(100)
+        .limit(20) // 성능 최적화: 최근 20개만 검사
         .snapshots();
 
     final userStream = _db.collection('users').doc(uid).snapshots();
@@ -448,7 +509,7 @@ class FirestoreService {
     final noticeStream = _db
         .collection('notices')
         .orderBy('crawled_at', descending: true)
-        .limit(100)
+        .limit(50) // 성능 최적화: 최근 50개만 검사
         .snapshots();
 
     final userStream = _db.collection('users').doc(uid).snapshots();
@@ -995,23 +1056,29 @@ class FirestoreService {
 
   // ★ 회원 탈퇴 (Account Deletion)
   Future<void> deleteUser() async {
-    User? user = _auth.currentUser;
+    final user = _auth.currentUser;
     if (user == null) return;
 
-    try {
-      String uid = user.uid;
+    final uid = user.uid;
 
-      // 1. Firestore 유저 데이터 삭제
+    try {
+      // 1. Firestore에서 사용자 관련 데이터 삭제
+      // (Batch를 사용해도 되지만, Auth 삭제 전 확실히 처리하기 위해 await)
       await _db.collection('users').doc(uid).delete();
 
-      // 2. (선택) 사용자가 작성한 게시글/댓글이 있다면 삭제하거나 '알수없음' 처리
-      // 현재는 공지사항 조회 위주이므로 스크랩 데이터 등은 유저 문서 삭제로 충분
-
-      // 3. Firebase Auth 계정 삭제
-      // 주: 재인증(Re-authenticate)이 필요할 수 있음 (UI에서 처리 권장)
+      // 2. Firebase Auth에서 사용자 계정 삭제
       await user.delete();
+
+      print('User account and Firestore data deleted successfully.');
+    } on FirebaseAuthException catch (e) {
+      // 계정 삭제 실패 시 (예: 최근 재로그인 필요)
+      if (e.code == 'requires-recent-login') {
+        throw '보안을 위해 로그아웃 후 다시 로그인해서 진행해주세요.';
+      }
+      throw '탈퇴 처리 중 오류가 발생했습니다: ${e.message}';
     } catch (e) {
-      throw Exception("회원 탈퇴 중 오류가 발생했습니다: $e");
+      print('Error deleting user data from Firestore: $e');
+      throw '데이터 삭제 중 오류가 발생했습니다: $e';
     }
   }
 }

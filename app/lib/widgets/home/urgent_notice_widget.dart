@@ -67,8 +67,9 @@ class _UrgentNoticeWidgetState extends State<UrgentNoticeWidget> {
     return StreamBuilder<QuerySnapshot>(
       stream: FirebaseFirestore.instance
           .collection('notices')
+          .where('is_urgent', isEqualTo: true)
           .orderBy('date', descending: true)
-          .limit(100)
+          .limit(10)
           .snapshots(),
       builder: (context, snapshot) {
         if (!snapshot.hasData) return const SizedBox.shrink();
@@ -230,7 +231,10 @@ class _UrgentNoticeWidgetState extends State<UrgentNoticeWidget> {
                                   urgentNotices.first.id,
                                 );
                                 if (mounted) {
-                                  ToastUtils.show(context, "푸시 알림 요청이 전송되었습니다.");
+                                  ToastUtils.show(
+                                    context,
+                                    "푸시 알림 요청이 전송되었습니다.",
+                                  );
                                 }
                               }
                             },

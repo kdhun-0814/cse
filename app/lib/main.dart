@@ -3,7 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart'; // NEW
 import 'package:firebase_crashlytics/firebase_crashlytics.dart';
 import 'package:flutter/foundation.dart';
-import 'firebase_options.dart'; // 자동 생성된 파일
+import 'firebase_options.dart'; // 자동 생성된 파일.
 import 'package:intl/date_symbol_data_local.dart';
 import 'auth_gate.dart'; // 생성할 파일
 import 'package:firebase_messaging/firebase_messaging.dart';
@@ -19,9 +19,7 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await initializeDateFormatting();
 
-  // ★ Firebase 초기화 (중복 방지)
   // ★ Firebase 초기화 (중복 방지 및 에러 핸들링)
   try {
     if (Firebase.apps.isEmpty) {
@@ -30,13 +28,14 @@ void main() async {
       );
     }
   } catch (e) {
-    // 이미 초기화되었다면 무시
     if (e.toString().contains('duplicate-app')) {
       debugPrint("Firebase already initialized: $e");
     } else {
       rethrow;
     }
   }
+
+  await initializeDateFormatting(); // DateFormat 초기화는 Firebase 이후로 이동
 
   // ★ Firestore 로컬 캐시 설정 (비용 절감 핵심)
   FirebaseFirestore.instance.settings = const Settings(

@@ -1,11 +1,13 @@
 import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
 import '../services/firestore_service.dart';
 import '../widgets/common/bounceable.dart';
 import '../widgets/common/custom_dialog.dart';
+import '../widgets/common/custom_loading_indicator.dart';
 import '../utils/toast_utils.dart';
 
 class MyInfoScreen extends StatefulWidget {
@@ -37,7 +39,7 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
             .collection('users')
             .doc(_user!.uid)
             .get();
-        if (doc.exists) {
+        if (doc.exists && mounted) {
           setState(() {
             _userData = doc.data() as Map<String, dynamic>;
           });
@@ -46,28 +48,241 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
         debugPrint("Error loading user data: $e");
       }
     }
-    setState(() {
-      _isLoading = false;
-    });
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
+    }
   }
 
-  Future<void> _sendPasswordResetEmail() async {
-    if (_user?.email == null) return;
+  // 비밀번호 변경 다이얼로그 (재인증 포함)
+  void _showChangePasswordDialog() {
+    final currentPwCtrl = TextEditingController();
+    final newPwCtrl = TextEditingController();
+    final confirmPwCtrl = TextEditingController();
 
-    try {
-      await _auth.sendPasswordResetEmail(email: _user!.email!);
-      if (mounted) {
-        ToastUtils.show(context, '${_user!.email}로 비밀번호 재설정 메일을 보냈습니다.');
-      }
-    } catch (e) {
-      if (mounted) {
-        ToastUtils.show(
-          context,
-          '메일 발송에 실패했습니다. 잠시 후 다시 시도해주세요.',
-          isError: true,
+    // Visibility states
+    bool obscureCurrent = true;
+    bool obscureNew = true;
+    bool obscureConfirm = true;
+
+    showDialog(
+      context: context,
+      builder: (dialogContext) {
+        return StatefulBuilder(
+          builder: (sbContext, dialogSetState) {
+            return CustomDialog(
+              title: "비밀번호 변경",
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    "안전을 위해 현재 비밀번호를 확인 후 변경합니다.",
+                    style: TextStyle(fontSize: 13, color: Color(0xFF6B7684)),
+                  ),
+                  const SizedBox(height: 16),
+                  TextField(
+                    controller: currentPwCtrl,
+                    obscureText: obscureCurrent,
+                    decoration: InputDecoration(
+                      labelText: "현재 비밀번호",
+                      suffixIcon: Bounceable(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          dialogSetState(() {
+                            obscureCurrent = !obscureCurrent;
+                          });
+                        },
+                        child: Container(
+                          color: Colors.transparent, // 터치 영역 확보
+                          padding: const EdgeInsets.all(12),
+                          child: Icon(
+                            obscureCurrent
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: obscureCurrent
+                                ? const Color(0xFFB0B8C1)
+                                : const Color(0xFF3182F6),
+                          ),
+                        ),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF3182F6)),
+                      ),
+                      isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: newPwCtrl,
+                    obscureText: obscureNew,
+                    decoration: InputDecoration(
+                      labelText: "새 비밀번호 (8자리 이상)",
+                      suffixIcon: Bounceable(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          dialogSetState(() {
+                            obscureNew = !obscureNew;
+                          });
+                        },
+                        child: Container(
+                          color: Colors.transparent,
+                          padding: const EdgeInsets.all(12),
+                          child: Icon(
+                            obscureNew
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: obscureNew
+                                ? const Color(0xFFB0B8C1)
+                                : const Color(0xFF3182F6),
+                          ),
+                        ),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF3182F6)),
+                      ),
+                      isDense: true,
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  TextField(
+                    controller: confirmPwCtrl,
+                    obscureText: obscureConfirm,
+                    decoration: InputDecoration(
+                      labelText: "새 비밀번호 확인",
+                      suffixIcon: Bounceable(
+                        onTap: () {
+                          HapticFeedback.lightImpact();
+                          dialogSetState(() {
+                            obscureConfirm = !obscureConfirm;
+                          });
+                        },
+                        child: Container(
+                          color: Colors.transparent,
+                          padding: const EdgeInsets.all(12),
+                          child: Icon(
+                            obscureConfirm
+                                ? Icons.visibility_off_outlined
+                                : Icons.visibility_outlined,
+                            color: obscureConfirm
+                                ? const Color(0xFFB0B8C1)
+                                : const Color(0xFF3182F6),
+                          ),
+                        ),
+                      ),
+                      border: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      enabledBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFFE5E8EB)),
+                      ),
+                      focusedBorder: OutlineInputBorder(
+                        borderRadius: BorderRadius.circular(12),
+                        borderSide: const BorderSide(color: Color(0xFF3182F6)),
+                      ),
+                      isDense: true,
+                    ),
+                  ),
+                ],
+              ),
+              confirmText: "변경하기",
+              cancelText: "취소",
+              onCancel: () => Navigator.pop(dialogContext),
+              onConfirm: () async {
+                final currentPw = currentPwCtrl.text.trim();
+                final newPw = newPwCtrl.text.trim();
+                final confirmPw = confirmPwCtrl.text.trim();
+
+                if (currentPw.isEmpty || newPw.isEmpty || confirmPw.isEmpty) {
+                  ToastUtils.show(context, "모든 필드를 입력해주세요.", isError: true);
+                  return;
+                }
+
+                if (newPw.length < 8) {
+                  ToastUtils.show(
+                    context,
+                    "새 비밀번호는 8자리 이상이어야 합니다.",
+                    isError: true,
+                  );
+                  return;
+                }
+
+                if (newPw != confirmPw) {
+                  ToastUtils.show(context, "새 비밀번호가 일치하지 않습니다.", isError: true);
+                  return;
+                }
+
+                if (currentPw == newPw) {
+                  ToastUtils.show(
+                    context,
+                    "현재 비밀번호와 다른 비밀번호를 입력해주세요.",
+                    isError: true,
+                  );
+                  return;
+                }
+
+                Navigator.pop(dialogContext); // 다이얼로그 닫기
+
+                // 변경 로직 시작
+                setState(() => _isLoading = true); // Using parent setState
+                try {
+                  final user = FirebaseAuth.instance.currentUser;
+                  if (user == null || user.email == null) return;
+
+                  // 1. 재인증 (Re-authentication)
+                  final credential = EmailAuthProvider.credential(
+                    email: user.email!,
+                    password: currentPw,
+                  );
+                  await user.reauthenticateWithCredential(credential);
+
+                  // 2. 비밀번호 업데이트
+                  await user.updatePassword(newPw);
+
+                  if (mounted) {
+                    ToastUtils.show(context, "비밀번호가 성공적으로 변경되었습니다.");
+                  }
+                } on FirebaseAuthException catch (e) {
+                  String message = "비밀번호 변경 실패";
+                  if (e.code == 'wrong-password' ||
+                      e.code == 'invalid-credential') {
+                    message = "현재 비밀번호가 일치하지 않습니다.";
+                  } else if (e.code == 'weak-password') {
+                    message = "비밀번호가 너무 약합니다.";
+                  } else if (e.code == 'requires-recent-login') {
+                    message = "보안을 위해 다시 로그인 후 시도해주세요.";
+                  }
+                  if (mounted) ToastUtils.show(context, message, isError: true);
+                } catch (e) {
+                  if (mounted)
+                    ToastUtils.show(context, "오류가 발생했습니다: $e", isError: true);
+                } finally {
+                  if (mounted) setState(() => _isLoading = false);
+                }
+              },
+            );
+          },
         );
-      }
-    }
+      },
+    );
   }
 
   Future<void> _pickImage() async {
@@ -76,14 +291,14 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
 
     if (image != null && _user != null) {
       try {
-        setState(() => _isLoading = true);
+        if (mounted) setState(() => _isLoading = true);
         File file = File(image.path);
         await FirestoreService().updateProfileImage(_user!.uid, file);
         await _loadUserData(); // 데이터 새로고침
         if (mounted) ToastUtils.show(context, "프로필 사진이 변경되었습니다.");
       } catch (e) {
         if (mounted) ToastUtils.show(context, "사진 변경 실패: $e", isError: true);
-        setState(() => _isLoading = false);
+        if (mounted) setState(() => _isLoading = false);
       }
     }
   }
@@ -170,7 +385,7 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
     if (_isLoading) {
       return const Scaffold(
         backgroundColor: Color(0xFFF2F4F6),
-        body: Center(child: CircularProgressIndicator()),
+        body: Center(child: CustomLoadingIndicator()),
       );
     }
 
@@ -444,9 +659,9 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                     ),
                   ),
                   const SizedBox(height: 20),
-                  // 비밀번호 재설정 버튼
+                  // 비밀번호 변경 버튼
                   Bounceable(
-                    onTap: _sendPasswordResetEmail,
+                    onTap: _showChangePasswordDialog,
                     borderRadius: BorderRadius.circular(12),
                     child: Container(
                       padding: const EdgeInsets.symmetric(vertical: 12),
@@ -470,7 +685,7 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                 Text(
-                                  "비밀번호 재설정",
+                                  "비밀번호 변경",
                                   style: TextStyle(
                                     fontSize: 16,
                                     fontWeight: FontWeight.w500,
@@ -479,7 +694,7 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                                 ),
                                 SizedBox(height: 4),
                                 Text(
-                                  "이메일로 재설정 링크를 발송합니다",
+                                  "현재 비밀번호 확인 후 즉시 변경합니다",
                                   style: TextStyle(
                                     fontSize: 13,
                                     color: Color(0xFF8B95A1),
@@ -530,29 +745,16 @@ class _MyInfoScreenState extends State<MyInfoScreen> {
                               context,
                             ).pushNamedAndRemoveUntil('/', (route) => false);
                           }
-                        } on FirebaseAuthException catch (e) {
-                          if (mounted) {
-                            setState(() => _isLoading = false);
-                            if (e.code == 'requires-recent-login') {
-                              ToastUtils.show(
-                                context,
-                                "보안을 위해 다시 로그인한 후 시도해주세요.",
-                                isError: true,
-                              );
-                            } else {
-                              ToastUtils.show(
-                                context,
-                                "탈퇴 실패: ${e.message}",
-                                isError: true,
-                              );
-                            }
-                          }
                         } catch (e) {
                           if (mounted) {
                             setState(() => _isLoading = false);
+                            // 서비스에서 던진 에러 메시지 그대로 표시 ('보안을 위해...' 등)
                             ToastUtils.show(
                               context,
-                              "오류가 발생했습니다: $e",
+                              e.toString().replaceAll(
+                                "Exception: ",
+                                "",
+                              ), // 혹시 모를 접두어 제거
                               isError: true,
                             );
                           }

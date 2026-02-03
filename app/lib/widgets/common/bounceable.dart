@@ -112,6 +112,7 @@ class _BounceableState extends State<Bounceable>
       onPointerCancel: _onPointerCancel,
       behavior: HitTestBehavior.translucent,
       child: GestureDetector(
+        behavior: HitTestBehavior.translucent, // 터치 영역보장
         onTap: _handleTap,
         onTapCancel: _handleTapCancel,
         onTapDown: (_) {

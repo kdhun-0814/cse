@@ -18,6 +18,9 @@ class SignupScreen extends StatefulWidget {
 
 class _SignupScreenState extends State<SignupScreen> {
   final _studentIdCtrl = TextEditingController(); // 학번
+
+  final _emailIdCtrl = TextEditingController(); // 이메일 아이디
+  final _emailDomainCtrl = TextEditingController(); // 이메일 도메인 (직접 입력용)
   final _pwCtrl = TextEditingController(); // 비번
   final _lastNameCtrl = TextEditingController(); // 성
   final _firstNameCtrl = TextEditingController(); // 이름
@@ -25,6 +28,17 @@ class _SignupScreenState extends State<SignupScreen> {
 
   bool _isLoading = false;
   bool _isObscure = true; // 비밀번호 숨김 여부
+
+  // 이메일 도메인 선택
+  final List<String> _domainList = [
+    'naver.com',
+    'gmail.com',
+    'daum.net',
+    'hanmail.net',
+    '직접 입력',
+  ];
+  String _selectedDomain = 'naver.com'; // 기본값
+  bool get _isDirectDomain => _selectedDomain == '직접 입력';
 
   // 약관 동의 상태
   bool _isServiceTermChecked = false;
@@ -42,6 +56,8 @@ class _SignupScreenState extends State<SignupScreen> {
   Future<void> _signUp() async {
     // 1. 기본 입력 확인
     if (_studentIdCtrl.text.isEmpty ||
+        _emailIdCtrl.text.isEmpty ||
+        (_isDirectDomain && _emailDomainCtrl.text.isEmpty) ||
         _pwCtrl.text.isEmpty ||
         _lastNameCtrl.text.isEmpty ||
         _firstNameCtrl.text.isEmpty) {
@@ -90,8 +106,23 @@ class _SignupScreenState extends State<SignupScreen> {
         return;
       }
 
-      // 학교 도메인 자동 완성
-      String email = "${_studentIdCtrl.text.trim()}@gnu.ac.kr";
+      // 학번 중복 확인
+      if (await FirestoreService().isStudentIdTaken(
+        _studentIdCtrl.text.trim(),
+      )) {
+        if (mounted) {
+          ToastUtils.show(context, "이미 가입된 학번입니다.", isError: true);
+          setState(() => _isLoading = false);
+        }
+        return;
+      }
+
+      // 이메일 조합
+      String emailId = _emailIdCtrl.text.trim();
+      String emailDomain = _isDirectDomain
+          ? _emailDomainCtrl.text.trim()
+          : _selectedDomain;
+      String email = "$emailId@$emailDomain";
 
       // 이름 합치기
       String lastName = _lastNameCtrl.text.trim();
@@ -123,7 +154,9 @@ class _SignupScreenState extends State<SignupScreen> {
             'created_at': FieldValue.serverTimestamp(),
             'approved_at': null,
             'expires_at': null,
-            'push_settings': {}, // 초기값
+            'isPushEnabled': true, // Push 알림 기본 활성화
+            'notification_settings':
+                {}, // 초기값 (key 변경: push_settings -> notification_settings)
             'home_widget_config': [], // 초기값
           });
 
@@ -229,6 +262,178 @@ class _SignupScreenState extends State<SignupScreen> {
                     color: Color(0xFF3182F6),
                   ),
                 ),
+              ),
+              const SizedBox(height: 24),
+
+              // 2. 이메일 입력
+              const Text(
+                "이메일",
+                style: TextStyle(
+                  fontSize: 13,
+                  fontWeight: FontWeight.bold,
+                  color: Color(0xFF333D4B),
+                ),
+              ),
+              const SizedBox(height: 8),
+              Row(
+                children: [
+                  // 이메일 아이디
+                  Expanded(
+                    flex: 1,
+                    child: TextField(
+                      controller: _emailIdCtrl,
+                      keyboardType: TextInputType.emailAddress,
+                      decoration: const InputDecoration(
+                        hintText: "이메일",
+                        hintStyle: TextStyle(color: Color(0xFFC5C8CE)),
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(12)),
+                        ),
+                        enabledBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(12)),
+                          borderSide: BorderSide(color: Color(0xFFE5E8EB)),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.all(Radius.circular(12)),
+                          borderSide: BorderSide(color: Color(0xFF3182F6)),
+                        ),
+                        contentPadding: EdgeInsets.symmetric(
+                          horizontal: 12,
+                          vertical: 14,
+                        ),
+                      ),
+                    ),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 8.0),
+                    child: Text(
+                      "@",
+                      style: TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                        color: Color(0xFF8B95A1),
+                      ),
+                    ),
+                  ),
+                  // 도메인 선택/입력
+                  Expanded(
+                    flex: 1,
+                    child: _isDirectDomain
+                        ? TextField(
+                            controller: _emailDomainCtrl,
+                            keyboardType: TextInputType.emailAddress,
+                            decoration: InputDecoration(
+                              hintText: "직접 입력",
+                              hintStyle: const TextStyle(
+                                color: Color(0xFFC5C8CE),
+                              ),
+                              border: const OutlineInputBorder(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(12),
+                                ),
+                              ),
+                              enabledBorder: const OutlineInputBorder(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(12),
+                                ),
+                                borderSide: BorderSide(
+                                  color: Color(0xFFE5E8EB),
+                                ),
+                              ),
+                              focusedBorder: const OutlineInputBorder(
+                                borderRadius: BorderRadius.all(
+                                  Radius.circular(12),
+                                ),
+                                borderSide: BorderSide(
+                                  color: Color(0xFF3182F6),
+                                ),
+                              ),
+                              contentPadding: const EdgeInsets.symmetric(
+                                horizontal: 12,
+                                vertical: 14,
+                              ),
+                              suffixIcon: IconButton(
+                                icon: const Icon(
+                                  Icons.close_rounded,
+                                  color: Color(0xFFB0B8C1),
+                                  size: 18,
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _selectedDomain = _domainList[0]; // 목록으로 복귀
+                                  });
+                                },
+                              ),
+                            ),
+                          )
+                        : Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 12),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: const Color(0xFFE5E8EB),
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Theme(
+                              data: Theme.of(context).copyWith(
+                                scrollbarTheme: ScrollbarThemeData(
+                                  thumbColor: WidgetStateProperty.all(
+                                    const Color(0xFFE5E8EB),
+                                  ),
+                                  trackColor: WidgetStateProperty.all(
+                                    Colors.transparent,
+                                  ),
+                                  // trackBorderColor: WidgetStateProperty.all(Colors.transparent),
+                                  radius: const Radius.circular(4),
+                                  thickness: WidgetStateProperty.all(6.0),
+                                  thumbVisibility: WidgetStateProperty.all(
+                                    true,
+                                  ), // 항상 표시 (데스크탑/웹 고려)
+                                ),
+                              ),
+                              child: DropdownButtonHideUnderline(
+                                child: DropdownButton<String>(
+                                  value: _selectedDomain,
+                                  isExpanded: true,
+                                  dropdownColor: Colors.white, // 배경 흰색 명시
+                                  borderRadius: BorderRadius.circular(
+                                    12,
+                                  ), // 메뉴 둥근 모서리
+                                  icon: const Icon(
+                                    Icons.keyboard_arrow_down_rounded,
+                                    color: Color(0xFF8B95A1),
+                                  ),
+                                  style: const TextStyle(
+                                    fontSize: 14,
+                                    color: Color(0xFF333D4B),
+                                  ),
+                                  items: _domainList.map((domain) {
+                                    return DropdownMenuItem(
+                                      value: domain,
+                                      child: Text(domain),
+                                    );
+                                  }).toList(),
+                                  onChanged: (value) {
+                                    if (value != null) {
+                                      setState(() {
+                                        _selectedDomain = value;
+                                        if (_isDirectDomain) {
+                                          _emailDomainCtrl.clear();
+                                        }
+                                      });
+                                    }
+                                  },
+                                ),
+                              ),
+                            ),
+                          ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 6),
+              const Text(
+                "비밀번호 분실 시 재설정 링크가 전송되니 실제 사용 중인 이메일을 입력해주세요.",
+                style: TextStyle(fontSize: 12, color: Color(0xFF8B95A1)),
               ),
               const SizedBox(height: 24),
 

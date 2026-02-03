@@ -53,6 +53,7 @@ dependencies:
   animate_do: ^4.2.0
   firebase_crashlytics: ^5.0.7
   firebase_analytics: ^12.1.1
+  flutter_local_notifications: ^20.0.0
 
 dev_dependencies:
   flutter_test:
@@ -123,4 +124,4 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/icon/app_icon.png"
   adaptive_icon_background: "#FFFFFF"
-  adaptive_icon_foreground: "assets/icon/app_icon.png"
+  adaptive_icon_foreground: "assets/icon/foreground_padded.png"

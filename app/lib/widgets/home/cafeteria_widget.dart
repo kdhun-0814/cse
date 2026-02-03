@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:intl/intl.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../common/custom_loading_indicator.dart';
 
 class CafeteriaWidget extends StatefulWidget {
   final bool forceShow;
@@ -173,7 +174,7 @@ class _CafeteriaWidgetState extends State<CafeteriaWidget>
                   .snapshots(),
               builder: (context, snapshot) {
                 if (snapshot.connectionState == ConnectionState.waiting) {
-                  return const Center(child: CircularProgressIndicator());
+                  return const Center(child: CustomLoadingIndicator());
                 }
 
                 Map<String, dynamic> menus = {};

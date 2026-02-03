@@ -82,9 +82,10 @@ class _FadingToastState extends State<_FadingToast>
   @override
   Widget build(BuildContext context) {
     final bottomPadding = MediaQuery.of(context).padding.bottom;
+    final viewInsetsBottom = MediaQuery.of(context).viewInsets.bottom;
 
     return Positioned(
-      bottom: 30 + bottomPadding, // 하단 여백 + 시스템 네비게이션 바 높이
+      bottom: 30 + bottomPadding + viewInsetsBottom, // 키보드 높이만큼 위로 올림
       left: 20,
       right: 20,
       child: FadeTransition(
