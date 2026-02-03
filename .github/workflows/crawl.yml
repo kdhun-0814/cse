@@ -16,7 +16,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11' # 최신 라이브러리 지원을 위해 3.11 사용
-
       - name: Set up Chrome
         uses: browser-actions/setup-chrome@v1
         with:
@@ -36,8 +35,3 @@ jobs:
           FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }} # 깃허브 Secrets에 저장된 JSON 키
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
         run: python ai_server/crawler.py
-
-      - name: Run Cafeteria Scraper
-        env:
-          FIREBASE_KEY: ${{ secrets.FIREBASE_KEY }}
-        run: python ai_server/cafeteria_scraper.py
