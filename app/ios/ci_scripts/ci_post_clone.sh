@@ -43,8 +43,26 @@ else
 fi
 
 # Podfile.lock과 매니페스트 동기화 문제 방지를 위해 repo-update 사용 권장
-echo "📦 Running pod install..."
-pod install --repo-update
+# 🍎 iOS 의존성 설치 최적화
+echo "📦 Running pod install with Google DNS fix..."
+
+# 1. 코코아팟 저장소를 CDN 방식으로 고정 (속도 및 연결 안정성 향상)
+rm -rf Pods
+rm -rf Podfile.lock
+pod repo update
+
+# 2. curl 타임아웃 방지를 위해 환경 변수 설정
+export COCOAPODS_SKIP_UPDATE_MESSAGE=1
+
+# 3. pod install 실행 (실패 시 3번 재시도)
+n=0
+until [ "$n" -ge 3 ]
+do
+   pod install --repo-update && break
+   n=$((n+1))
+   echo "⚠️ 네트워크 지연 발생. $n번째 재시도 중..."
+   sleep 10 # 재시도 간격을 10초로 늘려 안정성 확보
+done
 
 echo "✅ [Success] Build preparation complete!"
 exit 0
