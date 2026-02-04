@@ -102,17 +102,36 @@ class FirestoreService {
           .doc('signup')
           .get();
 
-      if (!doc.exists) return true; // 설정이 없으면 검증 없이 통과 (또는 false로 차단 가능)
+      if (!doc.exists) {
+        print(
+          "ℹ️ signup_token check: Document 'system_config/signup' not found. Bypassing verification.",
+        );
+        return true;
+      }
 
       final data = doc.data() as Map<String, dynamic>;
       final String? validToken = data['token'];
 
-      if (validToken == null || validToken.isEmpty) return true; // 토큰 미설정 시 통과
+      if (validToken == null || validToken.isEmpty) {
+        print(
+          "ℹ️ signup_token check: Token field is empty or null. Bypassing verification.",
+        );
+        return true;
+      }
 
-      return inputToken.trim() == validToken;
+      bool isMatched = inputToken.trim() == validToken.trim();
+      if (!isMatched) {
+        print(
+          "⚠️ signup_token mismatch: Inputted '$inputToken' but expected '$validToken'",
+        );
+      }
+      return isMatched;
     } catch (e) {
-      print("Error verifying signup token: $e");
-      return false; // 에러 시 안전하게 차단
+      print("❌ Error verifying signup token: $e");
+      print(
+        "💡 Tip: Check if Firestore rules allow reading 'system_config/signup' without authentication.",
+      );
+      return false;
     }
   }
 
