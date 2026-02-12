@@ -15,10 +15,9 @@ class AdminNoticeManagementScreen extends StatefulWidget {
 }
 
 class _AdminNoticeManagementScreenState
-    extends State<AdminNoticeManagementScreen>
-    with SingleTickerProviderStateMixin {
+    extends State<AdminNoticeManagementScreen> {
   final FirestoreService _firestoreService = FirestoreService();
-  late TabController _tabController;
+
   bool _isSearching = false;
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
@@ -36,12 +35,10 @@ class _AdminNoticeManagementScreenState
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
   }
 
   @override
   void dispose() {
-    _tabController.dispose();
     _searchController.dispose();
     super.dispose();
   }
@@ -123,8 +120,11 @@ class _AdminNoticeManagementScreenState
                 value: 'reset_urgent',
                 child: Row(
                   children: const [
-                    Icon(Icons.campaign_rounded,
-                        size: 18, color: Color(0xFFD32F2F)),
+                    Icon(
+                      Icons.campaign_rounded,
+                      size: 18,
+                      color: Color(0xFFD32F2F),
+                    ),
                     SizedBox(width: 8),
                     Text("모든 긴급 공지 해제"),
                   ],
@@ -134,8 +134,11 @@ class _AdminNoticeManagementScreenState
                 value: 'reset_important',
                 child: Row(
                   children: const [
-                    Icon(Icons.star_rounded,
-                        size: 18, color: Color(0xFFFFD180)),
+                    Icon(
+                      Icons.star_rounded,
+                      size: 18,
+                      color: Color(0xFFFFD180),
+                    ),
                     SizedBox(width: 8),
                     Text("모든 중요 공지 해제"),
                   ],
@@ -144,16 +147,6 @@ class _AdminNoticeManagementScreenState
             ],
           ),
         ],
-        bottom: TabBar(
-          controller: _tabController,
-          labelColor: Colors.blue,
-          unselectedLabelColor: Colors.grey,
-          indicatorColor: Colors.blue,
-          tabs: const [
-            Tab(text: "게시 중"),
-            Tab(text: "삭제됨"),
-          ],
-        ),
       ),
       body: Column(
         children: [
@@ -228,20 +221,7 @@ class _AdminNoticeManagementScreenState
                   return true;
                 }).toList();
 
-                final liveNotices = filtered
-                    .where((n) => !n.isDeleted)
-                    .toList();
-                final deletedNotices = filtered
-                    .where((n) => n.isDeleted)
-                    .toList();
-
-                return TabBarView(
-                  controller: _tabController,
-                  children: [
-                    _buildNoticeList(liveNotices, isDeletedTab: false),
-                    _buildNoticeList(deletedNotices, isDeletedTab: true),
-                  ],
-                );
+                return _buildNoticeList(filtered);
               },
             ),
           ),
@@ -250,7 +230,7 @@ class _AdminNoticeManagementScreenState
     );
   }
 
-  Widget _buildNoticeList(List<Notice> notices, {required bool isDeletedTab}) {
+  Widget _buildNoticeList(List<Notice> notices) {
     if (notices.isEmpty) {
       return const Center(
         child: Text("공지가 없습니다.", style: TextStyle(color: Colors.grey)),
@@ -302,7 +282,10 @@ class _AdminNoticeManagementScreenState
                         SizedBox(width: 4),
                         Text(
                           "긴급 공지",
-                          style: TextStyle(color: Color(0xFFD32F2F), fontSize: 11),
+                          style: TextStyle(
+                            color: Color(0xFFD32F2F),
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ),
@@ -320,7 +303,10 @@ class _AdminNoticeManagementScreenState
                         SizedBox(width: 4),
                         Text(
                           "중요 공지",
-                          style: TextStyle(color: Color(0xFFFFD180), fontSize: 11),
+                          style: TextStyle(
+                            color: Color(0xFFFFD180),
+                            fontSize: 11,
+                          ),
                         ),
                       ],
                     ),
@@ -333,36 +319,32 @@ class _AdminNoticeManagementScreenState
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              onSelected: (value) =>
-                  _handleMenuAction(value, notice, isDeletedTab),
+              onSelected: (value) => _handleMenuAction(value, notice),
               itemBuilder: (context) {
-                if (isDeletedTab) {
-                  return [
-                    const PopupMenuItem(value: 'restore', child: Text("복구하기")),
-                  ];
-                } else {
-                  return [
-                    const PopupMenuItem(
-                      value: 'category',
-                      child: Text("카테고리 변경"),
+                return [
+                  const PopupMenuItem(
+                    value: 'category',
+                    child: Text("카테고리 변경"),
+                  ),
+                  PopupMenuItem(
+                    value: 'push',
+                    child: Row(
+                      children: const [
+                        Icon(
+                          Icons.notifications_active_rounded,
+                          size: 18,
+                          color: Colors.black54,
+                        ),
+                        SizedBox(width: 8),
+                        Text("푸시 알림 발송"),
+                      ],
                     ),
-                    PopupMenuItem(
-                      value: 'push',
-                      child: Row(
-                        children: const [
-                          Icon(Icons.notifications_active_rounded,
-                              size: 18, color: Colors.black54),
-                          SizedBox(width: 8),
-                          Text("푸시 알림 발송"),
-                        ],
-                      ),
-                    ),
-                    const PopupMenuItem(
-                      value: 'delete',
-                      child: Text("삭제", style: TextStyle(color: Colors.red)),
-                    ),
-                  ];
-                }
+                  ),
+                  const PopupMenuItem(
+                    value: 'delete',
+                    child: Text("삭제", style: TextStyle(color: Colors.red)),
+                  ),
+                ];
               },
             ),
           ),
@@ -371,15 +353,8 @@ class _AdminNoticeManagementScreenState
     );
   }
 
-  Future<void> _handleMenuAction(
-    String value,
-    Notice notice,
-    bool isDeletedTab,
-  ) async {
-    if (value == 'restore') {
-      await _firestoreService.restoreNotice(notice.id);
-      if (mounted) _showSnackBar("공지가 복구되었습니다.");
-    } else if (value == 'delete') {
+  Future<void> _handleMenuAction(String value, Notice notice) async {
+    if (value == 'delete') {
       await _firestoreService.deleteNotice(notice.id);
       if (mounted) _showSnackBar("공지가 삭제(보관)되었습니다.");
     } else if (value == 'push') {

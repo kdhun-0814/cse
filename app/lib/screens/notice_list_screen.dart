@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import '../models/notice.dart';
 import '../services/firestore_service.dart';
-import 'package:cloud_firestore/cloud_firestore.dart'; // NEW
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'notice_detail_screen.dart';
 import '../widgets/common/custom_loading_indicator.dart';
 import '../widgets/common/bounceable.dart'; // Toss-style Interaction
@@ -42,6 +43,9 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
   final FocusNode _searchFocus = FocusNode(); // FocusNode 추가
   String _userRole = ''; // NEW
 
+  // User Stream
+  Stream<DocumentSnapshot>? _userStream; // NEW
+
   @override
   void initState() {
     super.initState();
@@ -63,6 +67,15 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
         setState(() => _userRole = role);
       }
     });
+
+    // 유저 스트림 초기화 (실시간 읽음/스크랩 반영)
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) {
+      _userStream = FirebaseFirestore.instance
+          .collection('users')
+          .doc(user.uid)
+          .snapshots();
+    }
 
     _scrollController.addListener(_onScroll);
   }
@@ -299,8 +312,24 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
 
             // 리스트
             Expanded(
-              child: Builder(
-                builder: (context) {
+              child: StreamBuilder<DocumentSnapshot>(
+                stream: _userStream,
+                builder: (context, userSnapshot) {
+                  // 유저 데이터 파싱 (읽음/스크랩 목록)
+                  List<String> readNotices = [];
+                  List<String> scraps = [];
+
+                  if (userSnapshot.hasData && userSnapshot.data != null) {
+                    final data =
+                        userSnapshot.data!.data() as Map<String, dynamic>?;
+                    if (data != null) {
+                      readNotices = List<String>.from(
+                        data['readNotices'] ?? [],
+                      );
+                      scraps = List<String>.from(data['scraps'] ?? []);
+                    }
+                  }
+
                   // 검색 필터링 (이미 서버에서 카테고리 등은 필터링됨)
                   // 검색어 필터 (제목+내용)
                   List<Notice> visibleNotices = _notices;
@@ -315,12 +344,12 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                     }).toList();
                   }
 
-                  // 정렬 로직: 스크랩된 공지 상단 고정
-                  // 주의: 리스트를 직접 sort하면 원본 순서가 바뀔 수 있으므로 복사본 사용 권장하나,
-                  // 여기선 보여주는 순서만 중요
+                  // 정렬 로직: 스크랩된 공지 상단 고정 (실시간 scraps 리스트 기반)
                   visibleNotices.sort((a, b) {
-                    if (a.isScraped != b.isScraped) {
-                      return a.isScraped ? -1 : 1; // 스크랩된 것이 위로
+                    bool aScraped = scraps.contains(a.id);
+                    bool bScraped = scraps.contains(b.id);
+                    if (aScraped != bScraped) {
+                      return aScraped ? -1 : 1; // 스크랩된 것이 위로
                     }
                     // 스크랩 여부가 같으면 날짜 내림차순 (이미 DB에서 정렬되어 오지만 안전장치)
                     return b.date.compareTo(a.date);
@@ -359,7 +388,13 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                           ),
                         );
                       }
-                      return _buildListItem(visibleNotices[index]);
+                      final notice = visibleNotices[index];
+                      // 실시간 상태 주입
+                      return _buildListItem(
+                        notice,
+                        isRead: readNotices.contains(notice.id),
+                        isScraped: scraps.contains(notice.id),
+                      );
                     },
                   );
                 },
@@ -392,7 +427,12 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
     }
   }
 
-  Widget _buildListItem(Notice notice) {
+  // ★ 상태를 인자로 받도록 수정
+  Widget _buildListItem(
+    Notice notice, {
+    required bool isRead,
+    required bool isScraped,
+  }) {
     final card = Bounceable(
       onTap: () {
         Navigator.push(
@@ -406,9 +446,15 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
       child: Container(
         padding: const EdgeInsets.all(20),
         decoration: BoxDecoration(
-          color: Colors.white,
+          color: isRead
+              ? Colors.white
+              : const Color(0xFFE8F3FF), // 읽지 않았으면 연한 파란 배경
           borderRadius: BorderRadius.circular(20),
-          border: Border.all(color: const Color(0xFFE5E8EB)),
+          border: Border.all(
+            color: isRead
+                ? const Color(0xFFE5E8EB)
+                : const Color(0xFF3182F6), // 읽지 않았으면 파란 테두리
+          ),
         ),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -417,14 +463,17 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
               children: [
                 Text(
                   notice.date,
-                  style: const TextStyle(
+                  style: TextStyle(
                     fontSize: 13,
-                    color: Color(0xFF8B95A1),
+                    color: isRead
+                        ? const Color(0xFF8B95A1)
+                        : const Color(0xFF3182F6), // 읽지 않았으면 날짜도 파란색
+                    fontWeight: isRead ? FontWeight.normal : FontWeight.bold,
                   ),
                 ),
                 const Spacer(),
                 JellyButton(
-                  isActive: notice.isScraped,
+                  isActive: isScraped, // 실시간 상태 사용
                   activeIcon: Icons.bookmark_rounded,
                   inactiveIcon: Icons.bookmark_border_rounded,
                   activeColor: const Color(0xFFFFD180),
@@ -432,23 +481,26 @@ class _NoticeListScreenState extends State<NoticeListScreen> {
                   onTap: () {
                     _firestoreService.toggleNoticeScrap(
                       notice.id,
-                      notice.isScraped,
+                      isScraped, // 실시간 상태 토글
                     );
                     ToastUtils.show(
                       context,
-                      !notice.isScraped ? "스크랩 보관함에 저장되었어요." : "스크랩이 해제되었어요.",
+                      !isScraped ? "스크랩 보관함에 저장되었어요." : "스크랩이 해제되었어요.",
                     );
                   },
                 ),
               ],
             ),
             const SizedBox(height: 8),
+            // 제목 Row (점 제거)
             Text(
               notice.title,
-              style: const TextStyle(
+              style: TextStyle(
                 fontSize: 15,
-                fontWeight: FontWeight.bold,
-                color: Color(0xFF191F28),
+                fontWeight: isRead
+                    ? FontWeight.normal
+                    : FontWeight.bold, // 읽지 않았으면 볼드
+                color: const Color(0xFF191F28), // 텍스트 색상은 통일
               ),
               maxLines: 2,
               overflow: TextOverflow.ellipsis,

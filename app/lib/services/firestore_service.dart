@@ -671,15 +671,13 @@ class FirestoreService {
     await batch.commit();
   }
 
-  // 관리자 기능: 공지 삭제 (Soft Delete)
+  // 관리자 기능: 공지 영구 삭제 (Hard Delete)
   Future<void> deleteNotice(String noticeId) async {
-    await _db.collection('notices').doc(noticeId).update({'is_deleted': true});
+    // 공지 문서 자체를 삭제합니다. (복구 불가)
+    await _db.collection('notices').doc(noticeId).delete();
   }
 
-  // 관리자 기능: 공지 복구
-  Future<void> restoreNotice(String noticeId) async {
-    await _db.collection('notices').doc(noticeId).update({'is_deleted': false});
-  }
+  // restoreNotice 삭제됨 (Hard Delete로 변경되어 복구 기능 없음)
 
   // 관리자 기능: 공지 카테고리 변경 (앱 전용)
   Future<void> updateNoticeCategory(String noticeId, String newCategory) async {

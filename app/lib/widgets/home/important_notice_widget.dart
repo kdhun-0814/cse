@@ -16,13 +16,6 @@ class ImportantNoticeWidget extends StatefulWidget {
 }
 
 class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
-  // Show 3 items at once (1 / 3 = 0.333...)
-  final PageController _pageController = PageController(
-    viewportFraction: 0.333,
-  );
-
-  Timer? _timer;
-  List<Notice> _cachedNotices = [];
   Future<QuerySnapshot>? _noticesFuture;
 
   @override
@@ -42,27 +35,6 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
   }
 
   @override
-  void dispose() {
-    _timer?.cancel();
-    _pageController.dispose();
-    super.dispose();
-  }
-
-  void _startAutoScroll(int totalItems) {
-    _timer?.cancel();
-    if (totalItems <= 3) return; // Scroll only if > 3 items
-
-    _timer = Timer.periodic(const Duration(seconds: 4), (timer) {
-      if (_pageController.hasClients) {
-        _pageController.nextPage(
-          duration: const Duration(milliseconds: 500),
-          curve: Curves.fastOutSlowIn,
-        );
-      }
-    });
-  }
-
-  @override
   Widget build(BuildContext context) {
     return FutureBuilder<QuerySnapshot>(
       future: _noticesFuture,
@@ -78,16 +50,6 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
 
         notices.sort((a, b) => b.date.compareTo(a.date));
         final displayNotices = notices;
-
-        // Auto-scroll logic if more than 3 items
-        if (displayNotices.length > 3) {
-          if (_cachedNotices.length != displayNotices.length) {
-            _cachedNotices = displayNotices;
-            _startAutoScroll(displayNotices.length);
-          }
-        } else {
-          _timer?.cancel(); // Stop timer if items reduced to <= 3
-        }
 
         if (displayNotices.isEmpty) {
           return Container(
@@ -217,29 +179,12 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
                 borderRadius: const BorderRadius.vertical(
                   bottom: Radius.circular(24),
                 ),
-                child: displayNotices.length <= 3
-                    ? Column(
-                        children: displayNotices.map((notice) {
-                          return _buildNoticeItem(context, notice);
-                        }).toList(),
-                      )
-                    : SizedBox(
-                        height: 52.0 * 3, // Total height for 3 items
-                        child: PageView.builder(
-                          controller: _pageController,
-                          physics: const NeverScrollableScrollPhysics(),
-                          padEnds: false, // Align content to top
-                          scrollDirection: Axis.vertical,
-                          // infinite scroll (no itemCount)
-                          itemBuilder: (context, index) {
-                            final realIndex = index % displayNotices.length;
-                            return _buildNoticeItem(
-                              context,
-                              displayNotices[realIndex],
-                            );
-                          },
-                        ),
-                      ),
+                child: Column(
+                  // Show only top 3 items
+                  children: displayNotices.take(3).map((notice) {
+                    return _buildNoticeItem(context, notice);
+                  }).toList(),
+                ),
               ),
             ],
           ),
@@ -249,46 +194,39 @@ class _ImportantNoticeWidgetState extends State<ImportantNoticeWidget> {
   }
 
   Widget _buildNoticeItem(BuildContext context, Notice notice) {
-    return SizedBox(
-      height: 52, // Fixed height for alignment
-      child: Bounceable(
-        onTap: () {
-          Navigator.push(
-            context,
-            MaterialPageRoute(
-              builder: (context) => NoticeDetailScreen(notice: notice),
+    return Bounceable(
+      onTap: () {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (context) => NoticeDetailScreen(notice: notice),
+          ),
+        );
+      },
+      child: ListTile(
+        contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 0),
+        visualDensity: const VisualDensity(vertical: -2), // Compact
+        leading: const Icon(
+          Icons.star_rounded,
+          color: Color(0xFFFFD180),
+          size: 24,
+        ),
+        title: Transform.translate(
+          offset: const Offset(-16, 0), // Adjust icon spacing
+          child: Text(
+            notice.title,
+            style: const TextStyle(
+              fontSize: 15,
+              fontWeight: FontWeight.w600,
+              color: Color(0xFF333D4B),
             ),
-          );
-        },
-        child: ListTile(
-          contentPadding: const EdgeInsets.symmetric(
-            horizontal: 20,
-            vertical: 0,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
           ),
-          visualDensity: const VisualDensity(vertical: -4), // Compact
-          // onTap 제거 (Bounceable에서 처리)
-          leading: const Icon(
-            Icons.star_rounded,
-            color: Color(0xFFFFD180),
-            size: 24,
-          ),
-          title: Transform.translate(
-            offset: const Offset(-16, 0), // Adjust icon spacing
-            child: Text(
-              notice.title,
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                color: Color(0xFF333D4B),
-              ),
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
-            ),
-          ),
-          trailing: Text(
-            notice.date.length > 5 ? notice.date.substring(5) : notice.date,
-            style: const TextStyle(fontSize: 12, color: Color(0xFF8B95A1)),
-          ),
+        ),
+        trailing: Text(
+          notice.date.length > 5 ? notice.date.substring(5) : notice.date,
+          style: const TextStyle(fontSize: 12, color: Color(0xFF8B95A1)),
         ),
       ),
     );
